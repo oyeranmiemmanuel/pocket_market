@@ -25,12 +25,7 @@
                 Hello, <span class="font-semibold text-indigo-600">{{ user.username }}</span>!
             </p>
             
-            <div class="space-y-4">
-                <a href="{% url 'password_verify' %}" 
-                   class="block w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-3 px-6 rounded-xl transition">
-                    Verify Password (Security Check)
-                </a>
-                
+            
                 <a href="{% url 'logout' %}" 
                    class="block w-full bg-red-500 hover:bg-red-600 text-white font-semibold py-3 px-6 rounded-xl transition">
                     Logout

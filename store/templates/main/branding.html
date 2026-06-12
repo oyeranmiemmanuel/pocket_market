@@ -1,0 +1,61 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block title %}Enick Tech{% endblock %}
+
+{% block content %}
+    <div class="branding-container">
+        <!-- Hero Section -->
+        <section class="hero">
+            <h1>Our Branding</h1>
+            <p class="subtitle">Crafting identities that speak louder than words, we're beyond branding</p>
+        </section>
+
+        <!-- Branding Gallery -->
+        <section class="gallery-section">
+            <h2>Branding Projects</h2>
+            
+            <div class="gallery-grid">
+                <!-- You can repeat this card block for more images -->
+                <div class="brand-card">
+                    <!-- < img -->
+                     
+                    <div class="brand-info">
+                        <h3>Project Alpha</h3>
+                        <p>Logo • Visual Identity • Packaging</p>
+                    </div>
+                </div>
+
+                <div class="brand-card">
+                    <img src="static/photo/Screenshot.png">
+
+                    <div class="brand-info">
+                        <h3>Project Beta</h3>
+                        <p>Brand Strategy • Social Media Kit</p>
+                    </div>
+                </div>
+
+                <div class="brand-card">
+                    <!-- <img  -->
+                    <div class="brand-info">
+                        <h3>Project Gamma</h3>
+                        <p>Complete Brand Identity</p>
+                    </div>
+                </div>
+
+                <!-- Add more cards as needed -->
+            </div>
+        </section>
+
+        <!-- Description Section -->
+        <section class="branding-description">
+            <h2>What We Do</h2>
+            <p>
+                We create powerful brand identities that connect with your audience. <br>
+                From concept to execution, we design logos, color palettes, typography, <br>
+                and visual systems that make your brand unforgettable.
+            </p>
+        </section>
+    </div>
+
+{% endblock %}

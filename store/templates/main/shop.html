@@ -1,0 +1,46 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block title %}Shop - Top Tech{% endblock %}
+
+{% block content %}
+
+    <section class="hero">
+        <h1>Shop Our Collection</h1>
+        <p class="subtitle">Premium digital & physical products</p>
+    </section>
+
+    <section class="shop-section">
+        <div class="products-grid">
+
+            {% for product in products %}
+            <div class="product-card">
+                {% if product.image %}
+                    <img src="{{ product.image.url }}" alt="{{ product.name }}">
+                {% else %}
+                    <img Calt="{{ product.name }}">
+                {% endif %}
+
+                <div class="product-info">
+                    <h3>{{ product.name }}</h3>
+                    <p>{{ product.description|truncatewords:15 }}</p>
+                    
+                    <div class="price">₦{{ product.price }}</div>
+
+                    {% if product.is_digital %}
+                        <span class="digital-badge">📥 Digital Download</span>
+                    {% endif %}
+
+                    <a href="{% url 'checkout' product.id %}" class="btn-primary buy-now-btn">
+                        Buy Now
+                    </a>
+                </div>
+            </div>
+            {% empty %}
+                <p>No products available at the moment.</p>
+            {% endfor %}
+
+        </div>
+    </section>
+
+{% endblock %}

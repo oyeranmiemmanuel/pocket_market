@@ -1,181 +1,185 @@
-from django.contrib import admin
-from .models import ToDolist, Item, Product, Order, ContactMessage
+# from django.contrib import admin
+# from .models import ToDolist, Item, Product, Order, ContactMessage
 
 
-# Register your models here.
+# # Register your models here.
 
-admin.site.register(ToDolist)
-admin.site.register(Item)
-
-
+# admin.site.register(ToDolist)
+# admin.site.register(Item)
 
 
 
-@admin.register(Product)
-class ProductAdmin(admin.ModelAdmin):
-    list_display = ['id', 'name', 'price', 'created_at']
 
 
-@admin.register(ContactMessage)
-class ContactMessageAdmin(admin.ModelAdmin):
-    # Columns to show in list view
-    list_display = ['name', 'email', 'subject', 'date_sent', 'is_read']
+# @admin.register(Product)
+# class ProductAdmin(admin.ModelAdmin):
+#     list_display = ['id', 'name', 'price', 'created_at']
+
+
+# @admin.register(ContactMessage)
+# class ContactMessageAdmin(admin.ModelAdmin):
+#     # Columns to show in list view
+#     list_display = ['name', 'email', 'subject', 'date_sent', 'is_read']
     
-    # Add filters on the right side
-    list_filter = ['is_read', 'date_sent']
+#     # Add filters on the right side
+#     list_filter = ['is_read', 'date_sent']
     
-    # Search bar
-    search_fields = ['name', 'email', 'subject', 'message']
+#     # Search bar
+#     search_fields = ['name', 'email', 'subject', 'message']
     
-    # Make date_sent read-only
-    readonly_fields = ['date_sent']
+#     # Make date_sent read-only
+#     readonly_fields = ['date_sent']
     
-    # Make message field bigger
-    fields = ['name', 'email', 'subject', 'message', 'date_sent', 'is_read']
+#     # Make message field bigger
+#     fields = ['name', 'email', 'subject', 'message', 'date_sent', 'is_read']
     
-    # Default ordering (newest first)
-    ordering = ['-date_sent']
+#     # Default ordering (newest first)
+#     ordering = ['-date_sent']
     
-    # Add "Mark as Read" action
-    actions = ['mark_as_read']
+#     # Add "Mark as Read" action
+#     actions = ['mark_as_read']
 
-    def mark_as_read(self, request, queryset):
-        queryset.update(is_read=True)
-    mark_as_read.short_description = "Mark selected messages as Read"
-
-
+#     def mark_as_read(self, request, queryset):
+#         queryset.update(is_read=True)
+#     mark_as_read.short_description = "Mark selected messages as Read"
 
 
 
-    # ====================== ORDER ADMIN ======================
-@admin.register(Order)
-class OrderAdmin(admin.ModelAdmin):
 
-    list_display = [
-        'reference',
-        'email',
-        'full_name',
-        'amount_display',
-        'status',
-        'verified',
-        'purchase_status',
-        'created_at'
-    ]
 
-    list_filter = [
-        'status',
-        'verified',
-        'purchase_completed',
-        'created_at'
-    ]
+#     # ====================== ORDER ADMIN ======================
+# @admin.register(Order)
+# class OrderAdmin(admin.ModelAdmin):
 
-    search_fields = [
-        'reference',
-        'email',
-        'full_name',
-        'phone'
-    ]
+#     list_display = [
+#         'reference',
+#         'email',
+#         'full_name',
+#         'amount_display',
+#         'status',
+#         'verified',
+#         'purchase_status',
+#         'created_at'
+#     ]
 
-    readonly_fields = [
-        'reference',
-        'created_at',
-        'updated_at'
-    ]
+#     list_filter = [
+#         'status',
+#         'verified',
+#         'purchase_completed',
+#         'created_at'
+#     ]
 
-    ordering = ['-created_at']
+#     search_fields = [
+#         'reference',
+#         'email',
+#         'full_name',
+#         'phone'
+#     ]
 
-    fieldsets = (
-        ('Customer Information', {
-            'fields': (
-                'user',
-                'full_name',
-                'email',
-                'phone'
-            )
-        }),
+#     readonly_fields = [
+#         'reference',
+#         'created_at',
+#         'updated_at'
+#     ]
 
-        ('Payment Information', {
-            'fields': (
-                'amount',
-                'reference',
-                'paystack_reference',
-                'status',
-                'verified'
-            )
-        }),
+#     ordering = ['-created_at']
 
-        ('Purchase Status', {
-            'fields': (
-                'purchase_completed',
-            )
-        }),
+#     fieldsets = (
+#         ('Customer Information', {
+#             'fields': (
+#                 'user',
+#                 'full_name',
+#                 'email',
+#                 'phone'
+#             )
+#         }),
 
-        ('Timestamps', {
-            'fields': (
-                'created_at',
-                'updated_at'
-            ),
-            'classes': ('collapse',)
-        }),
-    )
+#         ('Payment Information', {
+#             'fields': (
+#                 'amount',
+#                 'reference',
+#                 'paystack_reference',
+#                 'status',
+#                 'verified'
+#             )
+#         }),
 
-    def amount_display(self, obj):
-        return f"₦{obj.amount:,}"
+#         ('Purchase Status', {
+#             'fields': (
+#                 'purchase_completed',
+#             )
+#         }),
 
-    amount_display.short_description = "Amount"
+#         ('Timestamps', {
+#             'fields': (
+#                 'created_at',
+#                 'updated_at'
+#             ),
+#             'classes': ('collapse',)
+#         }),
+#     )
 
-    def purchase_status(self, obj):
+#     def amount_display(self, obj):
+#         return f"₦{obj.amount:,}"
 
-        if obj.verified and not obj.purchase_completed:
-            return "⚠ Recovery Needed"
+#     amount_display.short_description = "Amount"
 
-        return "✅ Completed"
+#     def purchase_status(self, obj):
 
-    purchase_status.short_description = "Purchase Status"
+#         if obj.verified and not obj.purchase_completed:
+#             return "⚠ Recovery Needed"
 
-    actions = [
-        'mark_as_verified',
-        'recover_failed_purchase'
-    ]
+#         return "✅ Completed"
 
-    def mark_as_verified(self, request, queryset):
+#     purchase_status.short_description = "Purchase Status"
 
-        queryset.update(
-            verified=True,
-            status='paid'
-        )
+#     actions = [
+#         'mark_as_verified',
+#         'recover_failed_purchase'
+#     ]
 
-    mark_as_verified.short_description = (
-        "Mark selected orders as Verified & Paid"
-    )
+#     def mark_as_verified(self, request, queryset):
 
-    def recover_failed_purchase(
-        self,
-        request,
-        queryset
-    ):
+#         queryset.update(
+#             verified=True,
+#             status='paid'
+#         )
 
-        recovered = 0
+#     mark_as_verified.short_description = (
+#         "Mark selected orders as Verified & Paid"
+#     )
 
-        for order in queryset:
+#     def recover_failed_purchase(
+#         self,
+#         request,
+#         queryset
+#     ):
 
-            if (
-                order.verified and
-                not order.purchase_completed
-            ):
+#         recovered = 0
 
-                order.purchase_completed = True
-                order.status = 'completed'
+#         for order in queryset:
 
-                order.save()
+#             if (
+#                 order.verified and
+#                 not order.purchase_completed
+#             ):
 
-                recovered += 1
+#                 order.purchase_completed = True
+#                 order.status = 'completed'
 
-        self.message_user(
-            request,
-            f"{recovered} order(s) recovered successfully."
-        )
+#                 order.save()
 
-    recover_failed_purchase.short_description = (
-        "Recover Failed Purchases"
-    )
+#                 recovered += 1
+
+#         self.message_user(
+#             request,
+#             f"{recovered} order(s) recovered successfully."
+#         )
+
+#     recover_failed_purchase.short_description = (
+#         "Recover Failed Purchases"
+#     )
+
+
+
+# Custom admin dashboard is used instead of Django Admin.

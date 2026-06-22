@@ -1,0 +1,133 @@
+
+{% load static %}
+
+
+<style>
+.admin-header{
+    margin-bottom:25px;
+}
+
+.admin-header h1{
+    color:#0097a7;
+}
+
+.admin-table{
+    width:100%;
+    border-collapse:collapse;
+    background:white;
+    border-radius:15px;
+    overflow:hidden;
+    box-shadow:0 5px 20px rgba(0,0,0,.08);
+}
+
+.admin-table th{
+    background:linear-gradient(180deg,#00c6c6,#0097a7);
+    color:white;
+    padding:15px;
+}
+
+.admin-table td{
+    padding:15px;
+    border-bottom:1px solid #eee;
+}
+
+.admin-table tr:hover{
+    background:#f8ffff;
+}
+
+.status-badge{
+    padding:6px 12px;
+    border-radius:20px;
+    font-size:12px;
+    font-weight:600;
+}
+
+.success{
+    background:#dcfce7;
+    color:#15803d;
+}
+
+.pending{
+    background:#fef3c7;
+    color:#b45309;
+}
+
+.btn-small{
+    display:inline-block;
+    padding:8px 12px;
+    background:#00bcd4;
+    color:white;
+    text-decoration:none;
+    border-radius:8px;
+    margin-right:5px;
+}
+
+.btn-small:hover{
+    background:#0097a7;
+}
+
+.danger{
+    background:#ef4444;
+}
+
+.danger:hover{
+    background:#dc2626;
+}
+</style>
+
+{% block content %}
+
+    <div class="admin-header">
+        <h1>Orders Management</h1>
+        <p>Total Orders: <strong>{{ orders|length }}</strong></p>
+    </div>
+
+    <table class="admin-table">
+        <thead>
+            <tr>
+                <th>Reference</th>
+                <th>Customer</th>
+                <th>Email</th>
+                <th>Amount</th>
+                <th>Status</th>
+                <th>Purchase Status</th>
+                <th>Date</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for order in orders %}
+            <tr>
+                <td><strong>{{ order.reference }}</strong></td>
+                <td>{{ order.full_name|default:"Guest" }}</td>
+                <td>{{ order.email }}</td>
+                <td><strong>₦{{ order.amount|floatformat:2 }}</strong></td>
+                <td>
+                    <span class="status-badge {% if order.verified %}success{% else %}pending{% endif %}">
+                        {{ order.status|upper }}
+                    </span>
+                </td>
+                <td>
+                    <span class="purchase-status">
+                        {{ order.purchase_status|default:"Pending" }}
+                    </span>
+                </td>
+                <td>{{ order.created_at}}</td>
+                <td>
+                    {% if not order.verified %}
+                        <a href="#" class="btn-small">Verify</a>
+                    {% endif %}
+                    <a href="#" class="btn-small danger">Delete</a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="8" style="text-align:center; padding:40px;">
+                    No orders found.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+{% endblock %}

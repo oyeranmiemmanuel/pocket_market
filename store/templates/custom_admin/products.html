@@ -1,0 +1,83 @@
+
+{% load static %}
+
+<style>
+h1{
+    margin-bottom:25px;
+    color:#0097a7;
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+    background:white;
+    border-radius:15px;
+    overflow:hidden;
+    box-shadow:0 5px 20px rgba(0,0,0,.08);
+}
+
+th{
+    background:linear-gradient(180deg,#00c6c6,#0097a7);
+    color:white;
+    padding:15px;
+}
+
+td{
+    padding:15px;
+    border-bottom:1px solid #eee;
+}
+
+tr:hover{
+    background:#f8ffff;
+}
+
+.delete-btn{
+    display:inline-block;
+    padding:8px 15px;
+    background:#ef4444;
+    color:white;
+    text-decoration:none;
+    border-radius:8px;
+    transition:.3s;
+}
+
+.delete-btn:hover{
+    background:#dc2626;
+}
+</style>
+
+{% block content %}
+<h1>Products</h1>
+
+<table>
+    <tr>
+        <th>ID</th>
+        <th>Name</th>
+        <th>Price</th>
+        <th>Created</th>
+    </tr>
+
+    {% for product in products %}
+    <tr>
+        <td>{{ product.id }}</td>
+        <td>{{ product.name }}</td>
+        <td>₦{{ product.price }}</td>
+        <td>{{ product.created_at }}</td>
+    </tr>
+    <td>
+    <a href="{% url 'delete_product' product.id %}"
+       class="delete-btn"
+       onclick>
+        Delete
+    </a>
+</td>
+    {% endfor %}
+
+    
+</table>
+
+
+
+{% endblock %}
+
+

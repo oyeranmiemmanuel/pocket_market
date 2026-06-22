@@ -1,0 +1,77 @@
+{% block content %}
+
+<div class="delete-container">
+
+    <h2>Delete Product</h2>
+
+    <p>
+        Are you sure you want to delete:
+        <strong>{{ product.name }}</strong>?
+    </p>
+
+    <p>This action cannot be undone.</p>
+
+    <form method="POST">
+        {% csrf_token %}
+
+        <button type="submit" class="btn btn-danger">
+            Delete Product
+        </button>
+
+        <a href="{% url 'admin_products' %}" class="btn btn-secondary">
+            Cancel
+        </a>
+    </form>
+
+</div>
+
+<style>
+.delete-container{
+    background:white;
+    padding:30px;
+    border-radius:15px;
+    max-width:600px;
+    margin:40px auto;
+    text-align:center;
+    box-shadow:0 5px 20px rgba(0,0,0,.08);
+}
+
+.delete-container h2{
+    color:#dc2626;
+    margin-bottom:20px;
+}
+
+.delete-container p{
+    margin-bottom:15px;
+}
+
+.btn{
+    display:inline-block;
+    padding:12px 20px;
+    text-decoration:none;
+    border:none;
+    border-radius:8px;
+    cursor:pointer;
+    margin:10px;
+}
+
+.btn-danger{
+    background:#dc2626;
+    color:white;
+}
+
+.btn-danger:hover{
+    background:#b91c1c;
+}
+
+.btn-secondary{
+    background:#64748b;
+    color:white;
+}
+
+.btn-secondary:hover{
+    background:#475569;
+}
+</style>
+
+{% endblock %}

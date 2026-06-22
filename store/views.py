@@ -28,6 +28,38 @@ import hashlib
 from django.views.decorators.csrf import csrf_exempt
 
 
+
+class OrderAdminHelper:
+    """Helper class for custom admin order functions"""
+
+    @staticmethod
+    def amount_display(obj):
+        return f"₦{obj.amount:,}"
+    amount_display.short_description = "Amount"
+
+    @staticmethod
+    def purchase_status(obj):
+        if getattr(obj, 'verified', False) and not getattr(obj, 'purchase_completed', False):
+            return "⚠ Recovery Needed"
+        return "✅ Completed"
+    purchase_status.short_description = "Purchase Status"
+
+    @staticmethod
+    def mark_as_verified(queryset):
+        queryset.update(verified=True, status='paid')
+
+    @staticmethod
+    def recover_failed_purchase(queryset):
+        recovered = 0
+        for order in queryset:
+            if order.verified and not getattr(order, 'purchase_completed', False):
+                order.purchase_completed = True
+                order.status = 'completed'
+                order.save()
+                recovered += 1
+        return recovered
+
+
 # ====================== AUTHENTICATION ======================
 
 def home(request):
@@ -167,7 +199,7 @@ def signup_view(request):
     else:
         form = UserCreationForm()
 
-    return render(request, 'admin/custom_signup.html', {'form': form})
+    return render(request, 'custom_admin/custom_signup.html', {'form': form})
 
 
 
@@ -180,7 +212,7 @@ def send_verification_email(request, user):
     )
 
     subject = "Verify Your Admin Account"
-    message = render_to_string('admin/email_verification.html', {
+    message = render_to_string('custom_admin/email_verification.html', {
         'user': user,
         'verification_link': verification_link,
     })
@@ -247,7 +279,7 @@ def login_view(request):
 
     return render(
         request,
-        'admin/custom_login.html'
+        'custom_admin/custom_login.html'
     )
 
 # =========================
@@ -300,7 +332,7 @@ def admin_dashboard(request):
     
     return render(
         request,
-        'admin/dashboard.html',
+        'custom_admin/dashboard.html',
         context
         
     )
@@ -311,12 +343,21 @@ def admin_dashboard(request):
 def admin_orders(request):
     orders = Order.objects.all().order_by('-created_at')
 
-    return render(
-        request,
-        'admin/orders.html',
-        {'orders': orders}
-    )
+    # Add custom methods as context
+    for order in orders:
+        order.amount_display = f"₦{order.amount:,}"
+        if order.verified and not getattr(order, 'purchase_completed', False):
+            order.purchase_status = "⚠ Recovery Needed"
+        else:
+            order.purchase_status = "✅ Completed"
 
+    context = {
+        'orders': orders,
+        'title': 'Manage Orders',
+        'OrderAdminHelper': OrderAdminHelper,
+    }
+
+    return render(request, 'custom_admin/orders.html', context)
 
 @login_required
 @user_passes_test(is_admin)
@@ -325,7 +366,7 @@ def admin_products(request):
 
     return render(
         request,
-        'admin/products.html',
+        'custom_admin/products.html',
         {'products': products}
     )
 
@@ -347,7 +388,7 @@ def delete_product(request, pk):
 
     return render(
         request,
-        'admin/delete_product.html',
+        'custom_admin/delete_product.html',
         {
             'product': product
         }
@@ -362,7 +403,7 @@ def admin_users(request):
 
     return render(
         request,
-        'admin/users.html',
+        'custom_admin/users.html',
         {'users': users}
     )
 
@@ -374,7 +415,7 @@ def admin_messages(request):
 
     return render(
         request,
-        'admin/messages.html',
+        'custom_admin/messages.html',
         {'messages_list': messages_list}
     )
 
@@ -389,16 +430,13 @@ def admin_messages(request):
 # =========================
 def logout_view(request):
     logout(request)
-    return render(
-        request,
-        'admin/custom_logout.html'
-    )
+    return render(request, 'custom_admin/custom_logout.html')
 
 def admin_panel(request):
     if not request.user.is_authenticated:
         return redirect('custom_login')
 
-    return render(request, 'admin/dashboard.html',)
+    return render(request, 'custom_admin/dashboard.html',)
 
 
 
@@ -691,7 +729,7 @@ Subject: {subject}
 Message:
 {message_text}
 
-View in Admin Panel: http://127.0.0.1:8000/admin/
+View in Admin Panel: http://127.0.0.1:8000/dashboard/
                 """,
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 recipient_list=[admin_email],

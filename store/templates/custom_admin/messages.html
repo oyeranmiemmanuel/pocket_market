@@ -1,5 +1,37 @@
-{% extends 'admin/base.html' %}
+
 {% load static %}
+
+
+<style>
+h1{
+    margin-bottom:25px;
+    color:#0097a7;
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+    background:white;
+    border-radius:15px;
+    overflow:hidden;
+    box-shadow:0 5px 20px rgba(0,0,0,.08);
+}
+
+th{
+    background:linear-gradient(180deg,#00c6c6,#0097a7);
+    color:white;
+    padding:15px;
+}
+
+td{
+    padding:15px;
+    border-bottom:1px solid #eee;
+}
+
+tr:hover{
+    background:#f8ffff;
+}
+</style>
 
 {% block content %}
 <h1>Contact Messages</h1>

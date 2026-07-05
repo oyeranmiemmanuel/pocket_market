@@ -1,0 +1,238 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block title %}Branding | Enick Tech{% endblock %}
+
+{% block content %}
+
+<!-- Hero -->
+
+<section class="bg-gradient-to-r from-indigo-700 via-blue-700 to-cyan-600 text-white py-24">
+
+    <div class="max-w-6xl mx-auto px-6 text-center">
+
+        <h1 class="text-5xl md:text-6xl font-extrabold">
+            Our Branding
+        </h1>
+
+        <p class="mt-6 text-xl text-blue-100 max-w-3xl mx-auto">
+            Crafting identities that speak louder than words.
+            We create memorable brands that connect with your audience
+            and leave a lasting impression.
+        </p>
+
+    </div>
+
+</section>
+
+<!-- Portfolio -->
+
+<section class="py-20 bg-gray-50">
+
+    <div class="max-w-7xl mx-auto px-6">
+
+        <div class="text-center mb-14">
+
+            <h2 class="text-4xl font-bold">
+                Branding Projects
+            </h2>
+
+            <p class="text-gray-600 mt-4">
+                A selection of our recent branding work.
+            </p>
+
+        </div>
+
+        <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
+
+            <!-- Card -->
+
+            <div class="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl hover:-translate-y-2 transition duration-300">
+
+                <img
+                    src="{% static 'photo/hotel.png' %}"
+                    class="w-full h-72 object-cover"
+                    alt="Project Alpha">
+
+                <div class="p-6">
+
+                    <h3 class="text-2xl font-bold">
+                        Project Alpha
+                    </h3>
+
+                    <p class="text-gray-600 mt-3">
+                        Logo Design • Brand Identity • Packaging
+                    </p>
+
+                </div>
+
+            </div>
+
+            <!-- Card -->
+
+            <div class="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl hover:-translate-y-2 transition duration-300">
+
+                <img
+                    src="{% static 'photo/Screenshot.png' %}"
+                    class="w-full h-72 object-cover"
+                    alt="Project Beta">
+
+                <div class="p-6">
+
+                    <h3 class="text-2xl font-bold">
+                        Project Beta
+                    </h3>
+
+                    <p class="text-gray-600 mt-3">
+                        Brand Strategy • Social Media Kit
+                    </p>
+
+                </div>
+
+            </div>
+
+            <!-- Card -->
+
+            <div class="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl hover:-translate-y-2 transition duration-300">
+
+                <img
+                    src="{% static 'photo/hotel_elevator.png' %}"
+                    class="w-full h-72 object-cover"
+                    alt="Project Gamma">
+
+                <div class="p-6">
+
+                    <h3 class="text-2xl font-bold">
+                        Project Gamma
+                    </h3>
+
+                    <p class="text-gray-600 mt-3">
+                        Complete Brand Identity
+                    </p>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</section>
+
+<!-- Services -->
+
+<section class="py-20">
+
+    <div class="max-w-6xl mx-auto px-6">
+
+        <div class="grid md:grid-cols-2 gap-16 items-center">
+
+            <div>
+
+                <h2 class="text-4xl font-bold mb-8">
+
+                    What We Do
+
+                </h2>
+
+                <p class="text-gray-600 leading-8 mb-8">
+
+                    We help businesses establish a strong visual identity through
+                    strategic branding, logo creation, typography selection,
+                    color systems, packaging, and marketing materials.
+
+                </p>
+
+                <div class="grid grid-cols-2 gap-5">
+
+                    <div class="bg-white rounded-xl shadow p-5">
+
+                        <i class="fas fa-palette text-blue-600 text-3xl mb-4"></i>
+
+                        <h4 class="font-bold">
+                            Logo Design
+                        </h4>
+
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow p-5">
+
+                        <i class="fas fa-pen-ruler text-green-600 text-3xl mb-4"></i>
+
+                        <h4 class="font-bold">
+                            Brand Identity
+                        </h4>
+
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow p-5">
+
+                        <i class="fas fa-box-open text-yellow-500 text-3xl mb-4"></i>
+
+                        <h4 class="font-bold">
+                            Packaging
+                        </h4>
+
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow p-5">
+
+                        <i class="fas fa-bullhorn text-red-500 text-3xl mb-4"></i>
+
+                        <h4 class="font-bold">
+                            Marketing
+                        </h4>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div>
+
+                <img
+                    src="{% static 'photo/setting_room.png' %}"
+                    class="rounded-3xl shadow-2xl"
+                    alt="Branding">
+
+            </div>
+
+        </div>
+
+    </div>
+
+</section>
+
+<!-- CTA -->
+
+<section class="bg-blue-700 text-white py-20">
+
+    <div class="max-w-5xl mx-auto px-6 text-center">
+
+        <h2 class="text-5xl font-bold">
+
+            Ready to Build Your Brand?
+
+        </h2>
+
+        <p class="text-blue-100 mt-6 text-xl">
+
+            Whether you're launching a new business or refreshing an existing one,
+            we'll create a brand identity that sets you apart.
+
+        </p>
+
+        <a href="{% url 'contact' %}"
+           class="inline-block mt-10 bg-white text-blue-700 px-8 py-4 rounded-xl font-semibold hover:scale-105 transition">
+
+            Start Your Project
+
+        </a>
+
+    </div>
+
+</section>
+
+{% endblock %}

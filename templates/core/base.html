@@ -1,0 +1,713 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>{% block title %}Top Tech - Creative Studio{% endblock %}</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+    {% block extra_css %}
+    {% endblock %}
+</head>
+
+<body class="bg-gray-50 text-gray-800">
+
+<!-- ================= NAVBAR ================= -->
+
+<nav class="fixed top-0 w-full bg-white shadow-lg z-50">
+
+    <div class="max-w-7xl mx-auto px-6">
+
+        <div class="flex items-center justify-between h-20">
+
+            <!-- Logo -->
+
+            <a href="{% url 'home' %}"
+               class="text-3xl font-bold text-blue-700 tracking-wide">
+                TOP Tech
+            </a>
+
+            <!-- Desktop Menu -->
+
+            <div class="hidden md:flex items-center gap-8">
+
+                <a href="{% url 'home' %}"
+                   class="hover:text-blue-600 transition">
+                    Home
+                </a>
+
+                <a href="{% url 'branding' %}"
+                   class="hover:text-blue-600 transition">
+                    Branding
+                </a>
+
+                <a href="{% url 'social' %}"
+                   class="hover:text-blue-600 transition">
+                    Social Media
+                </a>
+
+
+                <a href="{% url 'clothing' %}"
+                   class="hover:text-blue-600 transition">
+                    Clothing
+                </a>
+
+   
+
+            </div>
+
+            <!-- Buttons -->
+
+            <div class="hidden md:flex gap-3">
+
+                <a href="{% url 'shop' %}"
+                   class="bg-blue-600 text-white px-5 py-3 rounded-lg hover:bg-blue-700 transition">
+                    Shop
+                </a>
+
+                <a href="{% url 'contact' %}"
+                   class="border border-blue-600 text-blue-600 px-5 py-3 rounded-lg hover:bg-blue-600 hover:text-white transition">
+                    Contact
+                </a>
+
+            </div>
+
+            <!-- Mobile Button -->
+
+            <button
+                onclick="openNav()"
+                class="text-3xl md:hidden">
+
+                <i class="fas fa-bars"></i>
+
+            </button>
+
+        </div>
+
+    </div>
+
+</nav>
+
+<!-- ================= MOBILE SIDEBAR ================= -->
+
+<div id="sidebar"
+     class="fixed left-0 top-0 h-full w-72 bg-white shadow-2xl transform -translate-x-full transition duration-300 z-50">
+
+    <div class="flex justify-between items-center p-6 border-b">
+
+        <h2 class="font-bold text-xl">
+
+            Menu
+
+        </h2>
+
+        <button onclick="closeNav()">
+
+            <i class="fas fa-times text-2xl"></i>
+
+        </button>
+
+    </div>
+
+    <div class="flex flex-col">
+
+        <a href="{% url 'home' %}"
+           class="px-6 py-4 hover:bg-blue-50">
+            Home
+        </a>
+
+        <a href="{% url 'shop' %}"
+           class="px-6 py-4 hover:bg-blue-50">
+            Shop
+        </a>
+
+        <a href="{% url 'branding' %}"
+           class="px-6 py-4 hover:bg-blue-50">
+            Branding
+        </a>
+
+        <a href="{% url 'social' %}"
+           class="px-6 py-4 hover:bg-blue-50">
+            Social Media
+        </a>
+
+
+
+        <a href="{% url 'clothing' %}"
+           class="px-6 py-4 hover:bg-blue-50">
+            Clothing
+        </a>
+
+
+
+    </div>
+
+</div>
+
+<!-- Overlay -->
+
+<div id="overlay"
+     onclick="closeNav()"
+     class="fixed inset-0 bg-black/40 hidden z-40">
+</div>
+
+<!-- ================= MAIN ================= -->
+
+<main class="pt-20">
+
+{% block content %}
+
+<!-- ================= HERO ================= -->
+
+<section
+class="bg-gradient-to-r from-blue-700 via-indigo-700 to-purple-700 text-white">
+
+<div class="max-w-7xl mx-auto px-6 py-28">
+
+<div class="grid lg:grid-cols-2 gap-14 items-center">
+
+<div>
+
+<h1 class="text-5xl lg:text-7xl font-extrabold leading-tight">
+
+Creative Designs
+
+<span class="text-yellow-300">
+
+That Sell.
+
+</span>
+
+</h1>
+
+<p class="mt-8 text-xl text-blue-100">
+
+We create premium branding,
+marketing materials,
+social media graphics,
+clothing designs,
+and digital artwork
+that help businesses stand out.
+
+</p>
+
+<div class="mt-10 flex flex-wrap gap-5">
+
+<a href="{% url 'shop' %}"
+class="bg-white text-blue-700 px-8 py-4 rounded-xl font-semibold shadow-lg hover:scale-105 transition">
+
+Shop Artwork
+
+</a>
+
+
+</div>
+
+</div>
+
+<div>
+
+<img src="{% static 'photo/hotel.png' %}"
+     class="rounded-3xl shadow-2xl">
+
+</div>
+
+</div>
+
+</div>
+
+</section>
+
+<!-- ================= SERVICES ================= -->
+
+<section class="py-24">
+
+<div class="max-w-7xl mx-auto px-6">
+
+<div class="text-center mb-16">
+
+<h2 class="text-4xl font-bold">
+
+Our Services
+
+</h2>
+
+<p class="text-gray-600 mt-4">
+
+Everything you need to grow your brand.
+
+</p>
+
+</div>
+
+<div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
+
+
+
+    <!-- Branding -->
+
+<div class="bg-white rounded-2xl shadow-lg p-8 hover:-translate-y-2 hover:shadow-2xl transition duration-300">
+
+    <div class="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center mb-6">
+        <i class="fas fa-palette text-blue-600 text-2xl"></i>
+    </div>
+
+    <h3 class="text-2xl font-bold mb-4">
+        Branding
+    </h3>
+
+    <p class="text-gray-600 leading-7">
+        Complete brand identity including logos, color palettes,
+        typography, business cards and brand guidelines.
+    </p>
+
+</div>
+
+<!-- Social Media -->
+
+<div class="bg-white rounded-2xl shadow-lg p-8 hover:-translate-y-2 hover:shadow-2xl transition duration-300">
+
+    <div class="w-16 h-16 rounded-full bg-pink-100 flex items-center justify-center mb-6">
+        <i class="fas fa-hashtag text-pink-600 text-2xl"></i>
+    </div>
+
+    <h3 class="text-2xl font-bold mb-4">
+        Social Media
+    </h3>
+
+    <p class="text-gray-600 leading-7">
+        Eye-catching Instagram, Facebook, TikTok and promotional
+        graphics designed to increase engagement.
+    </p>
+
+</div>
+
+<!-- Flyer -->
+
+<div class="bg-white rounded-2xl shadow-lg p-8 hover:-translate-y-2 hover:shadow-2xl transition duration-300">
+
+    <div class="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mb-6">
+        <i class="fas fa-file-image text-green-600 text-2xl"></i>
+    </div>
+
+    <h3 class="text-2xl font-bold mb-4">
+        Flyer Design
+    </h3>
+
+    <p class="text-gray-600 leading-7">
+        Promotional flyers, event posters,
+        church programs and marketing materials
+        that grab attention.
+    </p>
+
+</div>
+
+<!-- Clothing -->
+
+<div class="bg-white rounded-2xl shadow-lg p-8 hover:-translate-y-2 hover:shadow-2xl transition duration-300">
+
+    <div class="w-16 h-16 rounded-full bg-yellow-100 flex items-center justify-center mb-6">
+        <i class="fas fa-shirt text-yellow-600 text-2xl"></i>
+    </div>
+
+    <h3 class="text-2xl font-bold mb-4">
+        Clothing Design
+    </h3>
+
+    <p class="text-gray-600 leading-7">
+        T-shirts, hoodies,
+        jerseys,
+        fashion collections
+        and apparel branding.
+    </p>
+
+</div>
+
+<!-- Illustration -->
+
+<div class="bg-white rounded-2xl shadow-lg p-8 hover:-translate-y-2 hover:shadow-2xl transition duration-300">
+
+    <div class="w-16 h-16 rounded-full bg-purple-100 flex items-center justify-center mb-6">
+        <i class="fas fa-pen-nib text-purple-600 text-2xl"></i>
+    </div>
+
+    <h3 class="text-2xl font-bold mb-4">
+        Digital Art
+    </h3>
+
+    <p class="text-gray-600 leading-7">
+        Original illustrations,
+        concept art,
+        wallpapers
+        and premium artwork.
+    </p>
+
+</div>
+
+<!-- UI -->
+
+<div class="bg-white rounded-2xl shadow-lg p-8 hover:-translate-y-2 hover:shadow-2xl transition duration-300">
+
+    <div class="w-16 h-16 rounded-full bg-indigo-100 flex items-center justify-center mb-6">
+        <i class="fas fa-desktop text-indigo-600 text-2xl"></i>
+    </div>
+
+    <h3 class="text-2xl font-bold mb-4">
+        UI Design
+    </h3>
+
+    <p class="text-gray-600 leading-7">
+        Beautiful landing pages,
+        dashboards
+        and modern website interfaces.
+    </p>
+
+</div>
+
+<!-- Motion -->
+
+<div class="bg-white rounded-2xl shadow-lg p-8 hover:-translate-y-2 hover:shadow-2xl transition duration-300">
+
+    <div class="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mb-6">
+        <i class="fas fa-video text-red-600 text-2xl"></i>
+    </div>
+
+    <h3 class="text-2xl font-bold mb-4">
+        Motion Graphics
+    </h3>
+
+    <p class="text-gray-600 leading-7">
+        Animated advertisements,
+        intros,
+        reels
+        and promotional videos.
+    </p>
+
+</div>
+
+<!-- Print -->
+
+<div class="bg-white rounded-2xl shadow-lg p-8 hover:-translate-y-2 hover:shadow-2xl transition duration-300">
+
+    <div class="w-16 h-16 rounded-full bg-cyan-100 flex items-center justify-center mb-6">
+        <i class="fas fa-print text-cyan-600 text-2xl"></i>
+    </div>
+
+    <h3 class="text-2xl font-bold mb-4">
+        Print Design
+    </h3>
+
+    <p class="text-gray-600 leading-7">
+        Brochures,
+        banners,
+        roll-up stands,
+        magazines and more.
+    </p>
+
+</div>
+
+</div>
+
+</div>
+
+</section>
+
+<!-- ================= PORTFOLIO ================= -->
+
+<section class="bg-gray-100 py-24">
+
+<div class="max-w-7xl mx-auto px-6">
+
+<div class="text-center mb-14">
+
+<h2 class="text-4xl font-bold">
+
+Featured Projects
+
+</h2>
+
+<p class="text-gray-600 mt-3">
+
+Some of our recent creative work.
+
+</p>
+
+</div>
+
+<div class="grid md:grid-cols-3 gap-10">
+
+<div class="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition">
+
+<img src="{% static 'photo/hotel.png' %}"
+class="w-full h-72 object-cover hover:scale-110 transition duration-500">
+
+<div class="p-6">
+
+<h3 class="text-xl font-bold">
+
+Hotel Branding
+
+</h3>
+
+<p class="text-gray-600 mt-2">
+
+Luxury branding package for hospitality.
+
+</p>
+
+</div>
+
+</div>
+
+<div class="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition">
+
+<img src="{% static 'photo/setting_room.png' %}"
+class="w-full h-72 object-cover hover:scale-110 transition duration-500">
+
+<div class="p-6">
+
+<h3 class="text-xl font-bold">
+
+Interior Advertisement
+
+</h3>
+
+<p class="text-gray-600 mt-2">
+
+Marketing visuals with premium styling.
+
+</p>
+
+</div>
+
+</div>
+
+<div class="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition">
+
+<img src="{% static 'photo/hotel_elevator.png' %}"
+class="w-full h-72 object-cover hover:scale-110 transition duration-500">
+
+<div class="p-6">
+
+<h3 class="text-xl font-bold">
+
+Corporate Flyer
+
+</h3>
+
+<p class="text-gray-600 mt-2">
+
+Professional promotional campaign.
+
+</p>
+
+</div>
+
+</div>
+
+</div>
+
+<div class="text-center mt-14">
+
+
+
+</div>
+
+</div>
+
+</section>
+
+<!-- ================= CALL TO ACTION ================= -->
+
+<section class="py-24 bg-blue-700 text-white">
+
+<div class="max-w-5xl mx-auto text-center px-6">
+
+<h2 class="text-5xl font-bold">
+
+Let's Build Your Brand
+
+</h2>
+
+<p class="mt-6 text-blue-100 text-xl">
+
+Need professional branding,
+social media graphics,
+flyers or clothing designs?
+
+We're ready to bring your vision to life.
+
+</p>
+
+<div class="mt-10 flex justify-center gap-6 flex-wrap">
+
+<a href="{% url 'contact' %}"
+class="bg-white text-blue-700 px-8 py-4 rounded-xl font-bold hover:scale-105 transition">
+
+Contact Us
+
+</a>
+
+<a href="{% url 'shop' %}"
+class="border-2 border-white px-8 py-4 rounded-xl hover:bg-white hover:text-blue-700 transition">
+
+Browse Shop
+
+</a>
+
+</div>
+
+</div>
+
+</section>
+
+{% endblock %}
+</main>
+
+<!-- ================= FOOTER ================= -->
+
+<footer class="bg-gray-900 text-gray-300">
+
+    <div class="max-w-7xl mx-auto px-6 py-16">
+
+        <div class="grid md:grid-cols-4 gap-10">
+
+            <!-- Brand -->
+
+            <div>
+
+                <h2 class="text-3xl font-bold text-white">
+                    TOP Tech
+                </h2>
+
+                <p class="mt-4 leading-7">
+                    Creative Studio specializing in branding,
+                    flyers, social media graphics,
+                    digital art and clothing design.
+                </p>
+
+            </div>
+
+            <!-- Quick Links -->
+
+            <div>
+
+                <h3 class="text-xl font-semibold text-white mb-5">
+                    Quick Links
+                </h3>
+
+                <div class="flex flex-col gap-3">
+
+                    <a href="{% url 'home' %}" class="hover:text-blue-400">Home</a>
+                     <a href="{% url 'shop' %}" class="hover:text-blue-400">Shop</a>
+                    <a href="{% url 'contact' %}" class="hover:text-blue-400">Contact</a>
+
+                </div>
+
+            </div>
+
+            <!-- Services -->
+
+            <div>
+
+                <h3 class="text-xl font-semibold text-white mb-5">
+                    Services
+                </h3>
+
+                <div class="flex flex-col gap-3">
+
+                    <p>Brand Identity</p>
+                    <p>Flyers</p>
+                    <p>Social Media</p>
+                    <p>Digital Art</p>
+
+                </div>
+
+            </div>
+
+            <!-- Contact -->
+
+            <div>
+
+                <h3 class="text-xl font-semibold text-white mb-5">
+                    Contact
+                </h3>
+
+                <div class="space-y-3">
+
+                    <p>
+                        <i class="fas fa-phone mr-2 text-blue-400"></i>
+                        +234 706 216 2692
+                    </p>
+
+                    <p>
+                        <i class="fab fa-whatsapp mr-2 text-green-400"></i>
+                        +234 907 995 9495
+                    </p>
+
+                    <p>
+                        <i class="fas fa-envelope mr-2 text-red-400"></i>
+                        admin@toptech.com
+                    </p>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <hr class="border-gray-700 my-10">
+
+        <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+
+            <p>
+                © 2026 TOP Tech. All Rights Reserved.
+            </p>
+
+            <div class="flex gap-5 text-2xl">
+
+                <a href="#" class="hover:text-blue-500">
+                    <i class="fab fa-facebook"></i>
+                </a>
+
+                <a href="#" class="hover:text-pink-500">
+                    <i class="fab fa-instagram"></i>
+                </a>
+
+                <a href="#" class="hover:text-blue-400">
+                    <i class="fab fa-twitter"></i>
+                </a>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</footer>
+<script>
+const sidebar = document.getElementById("sidebar");
+const overlay = document.getElementById("overlay");
+
+function openNav() {
+    sidebar.classList.remove("-translate-x-full");
+    overlay.classList.remove("hidden");
+    document.body.classList.add("overflow-hidden");
+}
+
+function closeNav() {
+    sidebar.classList.add("-translate-x-full");
+    overlay.classList.add("hidden");
+    document.body.classList.remove("overflow-hidden");
+}
+</script>
+{% block extra_js %}
+{% endblock %}
+
+</body>

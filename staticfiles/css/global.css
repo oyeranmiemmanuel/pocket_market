@@ -44,10 +44,11 @@ body {
 }
 
 .topnav a {
-    color: #f8fafc;
+    color: red;
     text-decoration: none;
     font-weight: 500;
     transition: 0.3s;
+    background-color: red;
 }
 
 .topnav a:hover {

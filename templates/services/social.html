@@ -1,0 +1,311 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block title %}Social Media | Top Tech{% endblock %}
+
+{% block content %}
+
+<!-- ================= HERO ================= -->
+
+<section class="bg-gradient-to-r from-pink-600 via-purple-700 to-indigo-700 text-white py-24">
+
+    <div class="max-w-6xl mx-auto px-6 text-center">
+
+        <span class="uppercase tracking-widest text-pink-200 font-semibold">
+            Social Media Design
+        </span>
+
+        <h1 class="text-5xl md:text-6xl font-extrabold mt-4">
+            Social Media That Gets Attention
+        </h1>
+
+        <p class="mt-6 text-xl text-purple-100 max-w-3xl mx-auto">
+            We create engaging social media graphics, campaigns, stories,
+            advertisements, and branded content that help businesses grow
+            across every platform.
+        </p>
+
+    </div>
+
+</section>
+
+<!-- ================= GALLERY ================= -->
+
+<section class="py-20 bg-gray-50">
+
+    <div class="max-w-7xl mx-auto px-6">
+
+        <div class="text-center mb-14">
+
+            <h2 class="text-4xl font-bold">
+                Recent Social Media Projects
+            </h2>
+
+            <p class="text-gray-600 mt-4">
+                Some of our latest creative campaigns.
+            </p>
+
+        </div>
+
+        <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
+
+            <!-- Card -->
+
+            <div class="group bg-white rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl transition duration-300">
+
+                <div class="overflow-hidden">
+
+                    <img
+                        src="{% static 'photo/hotel.png' %}"
+                        class="w-full h-80 object-cover group-hover:scale-110 transition duration-500"
+                        alt="Instagram Campaign">
+
+                </div>
+
+                <div class="p-6">
+
+                    <span class="text-pink-600 font-semibold text-sm uppercase">
+                        Instagram
+                    </span>
+
+                    <h3 class="text-2xl font-bold mt-2">
+                        Brand Awareness Campaign
+                    </h3>
+
+                    <p class="text-gray-600 mt-3">
+                        Promotional campaign designed to increase audience engagement.
+                    </p>
+
+                </div>
+
+            </div>
+
+            <!-- Card -->
+
+            <div class="group bg-white rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl transition">
+
+                <div class="overflow-hidden">
+
+                    <img
+                        src="{% static 'photo/setting_room.png' %}"
+                        class="w-full h-80 object-cover group-hover:scale-110 transition duration-500"
+                        alt="Facebook Promotion">
+
+                </div>
+
+                <div class="p-6">
+
+                    <span class="text-blue-600 font-semibold text-sm uppercase">
+                        Facebook
+                    </span>
+
+                    <h3 class="text-2xl font-bold mt-2">
+                        Product Promotion
+                    </h3>
+
+                    <p class="text-gray-600 mt-3">
+                        Creative product advertising for increased online sales.
+                    </p>
+
+                </div>
+
+            </div>
+
+            <!-- Card -->
+
+            <div class="group bg-white rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl transition">
+
+                <div class="overflow-hidden">
+
+                    <img
+                        src="{% static 'photo/hotel_elevator.png' %}"
+                        class="w-full h-80 object-cover group-hover:scale-110 transition duration-500"
+                        alt="Stories">
+
+                </div>
+
+                <div class="p-6">
+
+                    <span class="text-purple-600 font-semibold text-sm uppercase">
+                        Stories
+                    </span>
+
+                    <h3 class="text-2xl font-bold mt-2">
+                        Daily Content Series
+                    </h3>
+
+                    <p class="text-gray-600 mt-3">
+                        Interactive stories designed to improve customer retention.
+                    </p>
+
+                </div>
+
+            </div>
+
+            <!-- Repeat these cards with your own images -->
+
+        </div>
+
+    </div>
+
+</section>
+
+<!-- ================= SERVICES ================= -->
+
+<section class="py-20">
+
+    <div class="max-w-7xl mx-auto px-6">
+
+        <div class="text-center mb-16">
+
+            <h2 class="text-4xl font-bold">
+                What We Create
+            </h2>
+
+            <p class="text-gray-600 mt-4">
+                Everything your brand needs to stand out online.
+            </p>
+
+        </div>
+
+        <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+
+            <div class="bg-white rounded-2xl shadow-lg p-8 text-center hover:-translate-y-2 transition">
+
+                <i class="fas fa-images text-5xl text-pink-600 mb-6"></i>
+
+                <h3 class="text-xl font-bold">
+                    Carousel Posts
+                </h3>
+
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-lg p-8 text-center hover:-translate-y-2 transition">
+
+                <i class="fas fa-camera text-5xl text-blue-600 mb-6"></i>
+
+                <h3 class="text-xl font-bold">
+                    Stories
+                </h3>
+
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-lg p-8 text-center hover:-translate-y-2 transition">
+
+                <i class="fas fa-bullhorn text-5xl text-green-600 mb-6"></i>
+
+                <h3 class="text-xl font-bold">
+                    Ads
+                </h3>
+
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-lg p-8 text-center hover:-translate-y-2 transition">
+
+                <i class="fas fa-video text-5xl text-red-600 mb-6"></i>
+
+                <h3 class="text-xl font-bold">
+                    Reels
+                </h3>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</section>
+
+<!-- ================= STATS ================= -->
+
+<section class="bg-gray-900 text-white py-20">
+
+    <div class="max-w-6xl mx-auto px-6">
+
+        <div class="grid md:grid-cols-4 gap-10 text-center">
+
+            <div>
+
+                <h2 class="text-5xl font-bold text-pink-500">
+                    200+
+                </h2>
+
+                <p class="mt-3 text-gray-300">
+                    Posts Designed
+                </p>
+
+            </div>
+
+            <div>
+
+                <h2 class="text-5xl font-bold text-blue-400">
+                    80+
+                </h2>
+
+                <p class="mt-3 text-gray-300">
+                    Happy Clients
+                </p>
+
+            </div>
+
+            <div>
+
+                <h2 class="text-5xl font-bold text-green-400">
+                    25+
+                </h2>
+
+                <p class="mt-3 text-gray-300">
+                    Campaigns
+                </p>
+
+            </div>
+
+            <div>
+
+                <h2 class="text-5xl font-bold text-yellow-400">
+                    5★
+                </h2>
+
+                <p class="mt-3 text-gray-300">
+                    Client Satisfaction
+                </p>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</section>
+
+<!-- ================= CTA ================= -->
+
+<section class="bg-gradient-to-r from-blue-700 to-purple-700 text-white py-20">
+
+    <div class="max-w-5xl mx-auto text-center px-6">
+
+        <h2 class="text-5xl font-bold">
+
+            Ready to Grow Your Brand?
+
+        </h2>
+
+        <p class="mt-6 text-xl text-purple-100">
+
+            Let's create social media content that attracts attention,
+            increases engagement, and converts followers into customers.
+
+        </p>
+
+        <a href="{% url 'contact' %}"
+           class="inline-block mt-10 bg-white text-blue-700 px-8 py-4 rounded-xl font-semibold hover:scale-105 transition">
+
+            Start Your Project
+
+        </a>
+
+    </div>
+
+</section>
+
+{% endblock %}

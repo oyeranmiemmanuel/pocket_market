@@ -21,10 +21,11 @@ from django.conf import settings
 from django.conf.urls.static import static
 
 
-handler404 = "store.views.custom_404"
+handler404 = "apps.views.custom_404"
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', include('store.urls')),
+    path("accounts/", include("apps.accounts.urls")),
+    path('', include('apps.urls')),
 ]
 
 if settings.DEBUG:

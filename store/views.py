@@ -563,7 +563,7 @@ def verify_payment(request):
             order = Order.objects.get(reference=reference)
             order.verified = True
             order.status = 'paid'
-            # Product not yet delivered
+            # Product not yet delivered j
             order.purchase_completed = False
             order.save()
 

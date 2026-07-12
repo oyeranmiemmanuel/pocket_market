@@ -16,7 +16,8 @@ from django.urls import reverse
 from django.db import models
 from django.shortcuts import render
 from django.conf import settings
-from .models import Order, Product, ContactMessage
+from .models import Order, ContactMessage
+from apps.catalog.models import Product
 from .forms import MessageForm
 
 User = get_user_model()
@@ -246,7 +247,7 @@ def admin_dashboard(request):
     
     recent_orders = Order.objects.order_by('-created_at')[:10]
     recent_products = Product.objects.order_by('-created_at')[:10]
-    recent_messages = ContactMessage.objects.order_by('-date_sent')[:10]
+    recent_messages = ContactMessage.objects.order_by('-created_at')[:10]
 
     context = {
         'title': 'Admin Dashboard',
@@ -378,7 +379,7 @@ def admin_users(request):
 @login_required
 @user_passes_test(is_admin)
 def admin_messages(request):
-    messages_list = ContactMessage.objects.all().order_by('-date_sent')
+    messages_list = ContactMessage.objects.all().order_by('-created_at')
 
     return render(
         request,

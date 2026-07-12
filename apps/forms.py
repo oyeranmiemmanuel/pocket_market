@@ -1,5 +1,6 @@
 from django import forms
-from .models import ContactMessage, Product
+from .models import ContactMessage
+from apps.catalog.models import Product
 
 
 class PasswordVerificationForm(forms.Form):

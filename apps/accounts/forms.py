@@ -22,7 +22,20 @@ class RegisterForm(UserCreationForm):
             'password1',
             'password2',
         )
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
+        classes = (
+            "w-full bg-transparent px-4 py-3 "
+            "text-white placeholder-gray-400 "
+            "focus:outline-none"
+        )
+
+        for field in self.fields.values():
+            field.widget.attrs.update({
+                "class": classes
+            })
+            
     def save(self, commit=True):
         user = super().save(commit=False)
         user.email = self.cleaned_data['email']

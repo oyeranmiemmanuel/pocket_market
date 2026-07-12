@@ -1,0 +1,79 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Your Cart</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f4f6f8; padding: 40px; }
+        .cart-container { max-width: 800px; margin: 0 auto; background: white; border-radius: 12px; padding: 30px; box-shadow: 0 5px 20px rgba(0,0,0,0.08); }
+        h1 { margin-bottom: 20px; color: #2c3e50; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { text-align: left; padding: 12px 8px; border-bottom: 1px solid #eee; }
+        th { color: #888; font-size: 13px; text-transform: uppercase; }
+        input[type="number"] { width: 60px; padding: 6px; border: 1px solid #ddd; border-radius: 4px; }
+        .btn { padding: 8px 14px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; }
+        .btn-update { background: #3498db; color: white; }
+        .btn-remove { background: #e74c3c; color: white; }
+        .totals { text-align: right; margin-top: 20px; font-size: 18px; font-weight: 600; }
+        .empty { text-align: center; color: #888; padding: 40px 0; }
+        .messages { margin-bottom: 15px; }
+        .messages p { padding: 10px; border-radius: 6px; background: #d4edda; color: #155724; }
+    </style>
+</head>
+<body>
+<div class="cart-container">
+    <h1>Your Cart</h1>
+
+    {% if messages %}
+        <div class="messages">
+            {% for message in messages %}
+                <p>{{ message }}</p>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    {% if cart.items.all %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th>Price</th>
+                    <th>Quantity</th>
+                    <th>Subtotal</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in cart.items.all %}
+                <tr>
+                    <td>{{ item.product.name }}</td>
+                    <td>₦{{ item.product.price }}</td>
+                    <td>
+                        <form method="post" action="{% url 'cart:update_cart_item' item.id %}" style="display:flex; gap:6px;">
+                            {% csrf_token %}
+                            <input type="number" name="quantity" value="{{ item.quantity }}" min="0">
+                            <button class="btn btn-update" type="submit">Update</button>
+                        </form>
+                    </td>
+                    <td>₦{{ item.subtotal }}</td>
+                    <td>
+                        <form method="post" action="{% url 'cart:remove_from_cart' item.id %}">
+                            {% csrf_token %}
+                            <button class="btn btn-remove" type="submit">Remove</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="totals">
+            Total ({{ cart.total_items }} item{{ cart.total_items|pluralize }}): ₦{{ cart.total_price }}
+        </div>
+    {% else %}
+        <p class="empty">Your cart is empty.</p>
+    {% endif %}
+</div>
+</body>
+</html>

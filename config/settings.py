@@ -42,6 +42,8 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "apps.apps.MainConfig",
     "apps.accounts.apps.AccountsConfig",
+    "apps.catalog.apps.CatalogConfig",
+    "apps.cart.apps.CartConfig",
 ]
 
 LOGIN_URL = "custom_login"

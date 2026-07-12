@@ -25,6 +25,7 @@ handler404 = "apps.views.custom_404"
 urlpatterns = [
     path('admin/', admin.site.urls),
     path("accounts/", include("apps.accounts.urls")),
+    path("cart/", include("apps.cart.urls")),
     path('', include('apps.urls')),
 ]
 

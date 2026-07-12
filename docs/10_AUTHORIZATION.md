@@ -1,0 +1,3 @@
+# Authorization
+
+Role-based permissions.

@@ -17,9 +17,10 @@ urlpatterns = [
     
 
 # Buy Now (Direct Payment)
-    path('buy-now/<int:product_id>/', views.buy_now, name='buy_now'),
+    path('buy-now/<uuid:product_id>/', views.buy_now, name='buy_now'),
     
-    path('checkout/<int:product_id>/', views.checkout, name='checkout'),
+    path('checkout/<uuid:product_id>/', views.checkout, name='checkout'),
+    path('download/<uuid:product_id>/', views.download_product, name='download_product'),
     path('payment/verify/', views.verify_payment, name='verify_payment'),
     path('payment/success/', views.payment_success, name='payment_success'),
     path('webhook/paystack/', views.paystack_webhook, name='paystack_webhook'),
@@ -47,5 +48,5 @@ urlpatterns = [
     path('admin-panel/products/add/', views.add_product, name='add_product'),
     path('dashboard/users/', views.admin_users, name='admin_users'),
     path('dashboard/messages/', views.admin_messages, name='admin_messages'),
-    path('dashboard/product/delete/<int:pk>/', views.delete_product, name='delete_product'),
+    path('dashboard/product/delete/<uuid:pk>/', views.delete_product, name='delete_product'),
 ]

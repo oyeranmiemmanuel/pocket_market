@@ -4,145 +4,195 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sign Up - Admin Panel</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #2c3e50, #3498db);
-            height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .signup-container {
-            background: white;
-            padding: 40px 50px;
-            border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-            width: 100%;
-            max-width: 420px;
-        }
-        .logo {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        .logo h1 {
-            color: #2c3e50;
-            font-size: 28px;
-        }
-        h2 {
-            text-align: center;
-            margin-bottom: 25px;
-            color: #2c3e50;
-        }
-        form {
-            display: flex;
-            flex-direction: column;
-        }
-        .form-group {
-            margin-bottom: 18px;
-        }
-        label {
-            display: block;
-            margin-bottom: 8px;
-            color: #555;
-            font-weight: 500;
-        }
-        input {
-            width: 100%;
-            padding: 12px 15px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            font-size: 16px;
-        }
-        input:focus {
-            outline: none;
-            border-color: #3498db;
-            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
-        }
-        .btn {
-            padding: 14px;
-            background: #27ae60;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: 0.3s;
-            margin-top: 10px;
-        }
-        .btn:hover {
-            background: #219653;
-        }
-        .errorlist {
-            color: #e74c3c;
-            font-size: 14px;
-            margin-bottom: 10px;
-        }
-        .links {
-            text-align: center;
-            margin-top: 20px;
-        }
-        .links a {
-            color: #3498db;
-            text-decoration: none;
-        }
-    </style>
+    <title>Create Account • MyApp</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
 
-<div class="signup-container">
-    <div class="logo">
-        <h1>MyApp Admin</h1>
+<body class="min-h-screen bg-gradient-to-br from-slate-950 via-indigo-950 to-blue-950 flex items-center justify-center p-6">
+
+    <!-- Background Effects -->
+    <div class="absolute inset-0 overflow-hidden">
+        <div class="absolute -top-32 -left-20 h-96 w-96 rounded-full bg-blue-500/20 blur-3xl"></div>
+        <div class="absolute bottom-0 right-0 h-96 w-96 rounded-full bg-purple-500/20 blur-3xl"></div>
     </div>
-    <h2>Create New Account</h2>
 
-    <form method="post" action="">
-        {% csrf_token %}
+    <div class="relative w-full max-w-lg">
 
-        {% if form.errors %}
-            <div class="errorlist">
-                {% for field in form %}
-                    {% for error in field.errors %}
-                        <p>{{ error }}</p>
-                    {% endfor %}
-                {% endfor %}
+        <!-- Card -->
+        <div class="rounded-3xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl p-8">
+
+            <!-- Header -->
+            <div class="text-center mb-8">
+
+                <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-600 shadow-lg">
+                    <svg xmlns="http://www.w3.org/2000/svg"
+                         class="h-8 w-8 text-white"
+                         fill="none"
+                         viewBox="0 0 24 24"
+                         stroke="currentColor">
+
+                        <path stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M18 9v2a3 3 0 01-3 3H9m6 0v2m0-2H9m6-8H9a3 3 0 00-3 3v8a3 3 0 003 3h6a3 3 0 003-3V9a3 3 0 00-3-3z"/>
+
+                    </svg>
+                </div>
+
+                <h1 class="mt-5 text-3xl font-bold text-white">
+                    Create Account
+                </h1>
+
+                <p class="mt-2 text-sm text-gray-300">
+                    Join the platform and start managing your account
+                </p>
+
             </div>
-        {% endif %}
 
-        <div class="form-group">
-            <label for="id_username">Username</label>
-            {{ form.username }}
+            <!-- Form Errors -->
+            {% if form.errors %}
+            <div class="mb-6 rounded-xl border border-red-500/30 bg-red-500/20 p-4">
+
+                <h3 class="text-red-200 font-semibold mb-2">
+                    Please correct the following errors:
+                </h3>
+
+                <ul class="space-y-1 text-sm text-red-100">
+                    {% for field in form %}
+                        {% for error in field.errors %}
+                            <li>• {{ error }}</li>
+                        {% endfor %}
+                    {% endfor %}
+
+                    {% for error in form.non_field_errors %}
+                        <li>• {{ error }}</li>
+                    {% endfor %}
+                </ul>
+
+            </div>
+            {% endif %}
+
+            <form method="POST" class="space-y-5">
+
+                {% csrf_token %}
+
+                <!-- Username -->
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-200">
+                        Username
+                    </label>
+
+                    <div class="rounded-xl border border-white/20 bg-white/10 overflow-hidden">
+                        {{ form.username }}
+                    </div>
+                </div>
+
+                <!-- Email -->
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-200">
+                        Email Address
+                    </label>
+
+                    <div class="rounded-xl border border-white/20 bg-white/10 overflow-hidden">
+                        {{ form.email }}
+                    </div>
+                </div>
+
+                <!-- Password -->
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-200">
+                        Password
+                    </label>
+
+                    <div class="rounded-xl border border-white/20 bg-white/10 overflow-hidden">
+                        {{ form.password1 }}
+                    </div>
+
+                    <p class="mt-2 text-xs text-gray-400">
+                        Use at least 8 characters with letters and numbers.
+                    </p>
+                </div>
+
+                <!-- Confirm Password -->
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-200">
+                        Confirm Password
+                    </label>
+
+                    <div class="rounded-xl border border-white/20 bg-white/10 overflow-hidden">
+                        {{ form.password2 }}
+                    </div>
+                </div>
+
+                <!-- Terms -->
+                <div class="flex items-start gap-3 text-sm text-gray-300">
+
+                    <input
+                        type="checkbox"
+                        required
+                        class="mt-1 h-4 w-4 rounded border-gray-500 bg-transparent"
+                    >
+
+                    <span>
+                        I agree to the
+                        <a href="#" class="text-blue-300 hover:text-blue-200">
+                            Terms of Service
+                        </a>
+                        and
+                        <a href="#" class="text-blue-300 hover:text-blue-200">
+                            Privacy Policy
+                        </a>
+                    </span>
+
+                </div>
+
+                <!-- Submit -->
+                <button
+                    type="submit"
+                    class="w-full rounded-xl bg-indigo-600 py-3 font-semibold text-white transition hover:bg-indigo-700 hover:shadow-lg hover:shadow-indigo-500/40">
+
+                    Create Account
+
+                </button>
+
+            </form>
+
+            <!-- Divider -->
+            <div class="my-8 flex items-center">
+
+                <div class="h-px flex-1 bg-white/20"></div>
+
+                <span class="px-4 text-sm text-gray-400">
+                    OR
+                </span>
+
+                <div class="h-px flex-1 bg-white/20"></div>
+
+            </div>
+
+            <!-- Login Link -->
+            <div class="text-center text-sm text-gray-300">
+
+                Already have an account?
+
+                <a href="{% url 'accounts:login' %}"
+                   class="font-semibold text-blue-300 hover:text-blue-200">
+
+                    Sign In
+
+                </a>
+
+            </div>
+
         </div>
 
-        <div class="form-group">
-            <label for="id_email">Email Address</label>
-            {{ form.email }}
-        </div>
+        <!-- Footer -->
+        <p class="mt-6 text-center text-xs text-gray-400">
+            © {% now "Y" %} MyApp. All rights reserved.
+        </p>
 
-        <div class="form-group">
-            <label for="id_password1">Password</label>
-            {{ form.password1 }}
-        </div>
-
-        <div class="form-group">
-            <label for="id_password2">Confirm Password</label>
-            {{ form.password2 }}
-        </div>
-
-        <button type="submit" class="btn">Sign Up</button>
-    </form>
-
-    <div class="links">
-        <p>Already have an account? <a href="{% url 'accounts:login' %}">Login here</a></p>
     </div>
-</div>
 
 </body>
 </html>

@@ -1,3 +1,5 @@
+> **Superseded** - see the numbered docs (00_PROJECT_OVERVIEW.md onward) in this same folder, which are now the canonical guide. Kept here for history.
+
 # NICO_APP Architecture Guide
 
 Version: 1.0

@@ -58,3 +58,39 @@ empty/disposable throughout this phase - this is *not* the normal way to
 evolve migrations once real data exists. See `03_DATABASE.md` for the
 correct process (`makemigrations` incrementally) once the project has real
 data to protect.
+
+## Old single-product flow retired in favor of cart-only checkout (resolved)
+
+Previously flagged as unresolved debt: the legacy monolith's
+`buy_now`/`checkout` Paystack flow existed alongside the new
+`orders`/`payments` apps. Decision made: retire the old flow entirely
+rather than keep it as a "buy now" fast path - `buy_now`, `checkout`,
+`verify_payment`, `download_product`, `payment_success`,
+`paystack_webhook` all removed from `apps/views.py`/`apps/urls.py`.
+Cart-based checkout (`apps.orders`/`apps.payments`) is now the only path
+to purchase. Retiring it also surfaced a real security bug worth noting
+for the record: the old `download_product` had no ownership or payment
+check at all - the replacement in `apps.orders` checks both, verified
+live with a cross-user test.
+
+## Digital downloads live in `orders`, not `catalog` or `payments`
+
+Considered attaching digital file delivery to `catalog.Product` directly
+(since that's where `digital_file` lives) or to `payments` (since
+delivery happens right after payment succeeds). Chose `orders` instead -
+downloading is really about "does this specific paid order entitle this
+specific user to this specific file," which is an order-ownership
+question, not a product or payment question. The URL reflects that:
+`/orders/<reference>/download/<item_id>/`, scoped to one order's items.
+
+## Stock decremented at payment success, not at order creation
+
+Considered decrementing stock as soon as an `Order`/`OrderItem` is
+created (at checkout submission). Decided against it - an order isn't
+real until it's paid, and reserving stock for unpaid/abandoned orders
+would let someone block out inventory just by starting checkout and never
+finishing. Tradeoff: no hard reservation during the checkout->payment
+window, so two people can both pass stock validation for the last unit
+and only the first to actually pay gets it (see `16_INVENTORY.md`'s
+"known gap" section) - accepted as fine for now, revisit if it becomes a
+real problem.

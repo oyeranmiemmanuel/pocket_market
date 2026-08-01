@@ -20,6 +20,8 @@
 
 <!-- ================= NAVBAR ================= -->
 
+<!-- ================= NAVBAR ================= -->
+
 <nav class="fixed top-0 w-full bg-white shadow-lg z-50">
 
     <div class="max-w-7xl mx-auto px-6">
@@ -27,14 +29,12 @@
         <div class="flex items-center justify-between h-20">
 
             <!-- Logo -->
-
             <a href="{% url 'home' %}"
                class="text-3xl font-bold text-blue-700 tracking-wide">
                 TOP Tech
             </a>
 
             <!-- Desktop Menu -->
-
             <div class="hidden md:flex items-center gap-8">
 
                 <a href="{% url 'home' %}"
@@ -52,21 +52,17 @@
                     Social Media
                 </a>
 
-
                 <a href="{% url 'clothing' %}"
                    class="hover:text-blue-600 transition">
                     Clothing
                 </a>
 
-   
-
             </div>
 
-            <!-- Buttons -->
+            <!-- Right Buttons -->
+            <div class="hidden md:flex items-center gap-3">
 
-            <div class="hidden md:flex gap-3">
-
-                <a href="{% url 'shop' %}"
+                <a href="{% url 'catalog:product_list' %}"
                    class="bg-blue-600 text-white px-5 py-3 rounded-lg hover:bg-blue-700 transition">
                     Shop
                 </a>
@@ -76,13 +72,35 @@
                     Contact
                 </a>
 
+                {% if user.is_authenticated %}
+
+                    <form action="{% url 'accounts:logout' %}" method="post" class="inline">
+                        {% csrf_token %}
+                        <button type="submit"
+                                class="bg-red-600 text-white px-5 py-3 rounded-lg hover:bg-red-700 transition">
+                            Log Out
+                        </button>
+                    </form>
+
+                {% else %}
+
+                    <a href="{% url 'accounts:login' %}"
+                       class="border border-blue-600 text-blue-600 px-5 py-3 rounded-lg hover:bg-blue-600 hover:text-white transition">
+                        Log In
+                    </a>
+
+                    <a href="{% url 'accounts:register' %}"
+                       class="bg-green-600 text-white px-5 py-3 rounded-lg hover:bg-green-700 transition">
+                        Sign Up
+                    </a>
+
+                {% endif %}
+
             </div>
 
-            <!-- Mobile Button -->
-
-            <button
-                onclick="openNav()"
-                class="text-3xl md:hidden">
+            <!-- Mobile Menu Button -->
+            <button onclick="openNav()"
+                    class="text-3xl md:hidden">
 
                 <i class="fas fa-bars"></i>
 
@@ -93,63 +111,96 @@
     </div>
 
 </nav>
-
 <!-- ================= MOBILE SIDEBAR ================= -->
-
 <div id="sidebar"
      class="fixed left-0 top-0 h-full w-72 bg-white shadow-2xl transform -translate-x-full transition duration-300 z-50">
 
+    <!-- Header -->
     <div class="flex justify-between items-center p-6 border-b">
 
         <h2 class="font-bold text-xl">
-
             Menu
-
         </h2>
 
         <button onclick="closeNav()">
-
             <i class="fas fa-times text-2xl"></i>
-
         </button>
 
     </div>
 
+    <!-- Navigation Links -->
     <div class="flex flex-col">
 
         <a href="{% url 'home' %}"
-           class="px-6 py-4 hover:bg-blue-50">
+           class="px-6 py-4 hover:bg-blue-50"
+           onclick="closeNav()">
             Home
         </a>
 
-        <a href="{% url 'shop' %}"
-           class="px-6 py-4 hover:bg-blue-50">
+        <a href="{% url 'catalog:product_list' %}"
+           class="px-6 py-4 hover:bg-blue-50"
+           onclick="closeNav()">
             Shop
         </a>
 
         <a href="{% url 'branding' %}"
-           class="px-6 py-4 hover:bg-blue-50">
+           class="px-6 py-4 hover:bg-blue-50"
+           onclick="closeNav()">
             Branding
         </a>
 
         <a href="{% url 'social' %}"
-           class="px-6 py-4 hover:bg-blue-50">
+           class="px-6 py-4 hover:bg-blue-50"
+           onclick="closeNav()">
             Social Media
         </a>
 
-
-
         <a href="{% url 'clothing' %}"
-           class="px-6 py-4 hover:bg-blue-50">
+           class="px-6 py-4 hover:bg-blue-50"
+           onclick="closeNav()">
             Clothing
         </a>
 
+        <a href="{% url 'contact' %}"
+           class="px-6 py-4 hover:bg-blue-50"
+           onclick="closeNav()">
+            Contact
+        </a>
 
+    </div>
+
+    <!-- Authentication Buttons -->
+    <div class="mt-auto border-t p-6 space-y-3">
+
+        {% if user.is_authenticated %}
+
+            <form action="{% url 'accounts:logout' %}" method="post">
+                {% csrf_token %}
+                <button type="submit"
+                        class="w-full bg-red-600 text-white py-3 rounded-lg hover:bg-red-700 transition">
+                    Log Out
+                </button>
+            </form>
+
+        {% else %}
+
+            <a href="{% url 'accounts:login' %}"
+               class="block w-full text-center border border-blue-600 text-blue-600 py-3 rounded-lg hover:bg-blue-600 hover:text-white transition"
+               onclick="closeNav()">
+                Log In
+            </a>
+
+            <a href="{% url 'accounts:register' %}"
+               class="block w-full text-center bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition"
+               onclick="closeNav()">
+                Sign Up
+            </a>
+
+        {% endif %}
 
     </div>
 
 </div>
-
 <!-- Overlay -->
 
 <div id="overlay"
@@ -199,7 +250,7 @@ that help businesses stand out.
 
 <div class="mt-10 flex flex-wrap gap-5">
 
-<a href="{% url 'shop' %}"
+<a href="{% url 'catalog:product_list' %}"
 class="bg-white text-blue-700 px-8 py-4 rounded-xl font-semibold shadow-lg hover:scale-105 transition">
 
 Shop Artwork
@@ -554,7 +605,7 @@ Contact Us
 
 </a>
 
-<a href="{% url 'shop' %}"
+<a href="{% url 'catalog:product_list' %}"
 class="border-2 border-white px-8 py-4 rounded-xl hover:bg-white hover:text-blue-700 transition">
 
 Browse Shop
@@ -605,7 +656,7 @@ Browse Shop
                 <div class="flex flex-col gap-3">
 
                     <a href="{% url 'home' %}" class="hover:text-blue-400">Home</a>
-                     <a href="{% url 'shop' %}" class="hover:text-blue-400">Shop</a>
+                     <a href="{% url 'catalog:product_list' %}" class="hover:text-blue-400">Shop</a>
                     <a href="{% url 'contact' %}" class="hover:text-blue-400">Contact</a>
 
                 </div>

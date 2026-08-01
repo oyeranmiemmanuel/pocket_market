@@ -44,29 +44,7 @@
         </header>
 
         <div class="content">
-            <h1>Welcome to Admin Panel</h1>
-            
-            <!-- Stats Cards -->
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin: 30px 0;">
-                <div class="card">
-                    <h3>Total Users</h3>
-                    <h2>{{ total_users }}</h2>
-                </div>
-                <div class="card">
-                    <h3>Total Orders</h3>
-                    <h2>{{ total_orders }}</h2>
-                </div>
-                <div class="card">
-                    <h3>Revenue</h3>
-                    <h2>₦{{ revenue }}</h2>
-                </div>
-            </div>
-
-            <!-- You can add more sections here -->
-            <div class="card">
-                <h3>Recent Activity</h3>
-                <p>Content goes here...</p>
-            </div>
+            {% block content %}{% endblock %}
         </div>
     </div>
 </div>

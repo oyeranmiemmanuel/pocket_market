@@ -1,6 +1,7 @@
-{% extend main/base.html %}
+{% extends 'custom_admin/base.html' %}
 {% load static %}
 
+{% block content %}
 <style>
 h1{
     margin-bottom:25px;
@@ -31,6 +32,21 @@ tr:hover{
     background:#f8ffff;
 }
 
+.edit-btn{
+    display:inline-block;
+    padding:8px 15px;
+    background:#00bcd4;
+    color:white;
+    text-decoration:none;
+    border-radius:8px;
+    transition:.3s;
+    margin-right:8px;
+}
+
+.edit-btn:hover{
+    background:#0097a7;
+}
+
 .delete-btn{
     display:inline-block;
     padding:8px 15px;
@@ -59,7 +75,6 @@ tr:hover{
 }
 </style>
 
-{% block content %}
 <h1>Products</h1>
 
 <table>
@@ -88,6 +103,10 @@ tr:hover{
 
 
     <td>
+    <a href="{% url 'edit_product' product.id %}"
+       class="edit-btn">
+        Edit
+    </a>
     <a href="{% url 'delete_product' product.id %}"
        class="delete-btn"
        onclick>

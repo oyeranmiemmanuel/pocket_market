@@ -13,23 +13,13 @@ urlpatterns = [
     path("branding/", views.branding, name="branding"),
     path("social/", views.social, name="social"),
     path("clothing/", views.clothing, name="clothing"),
-    path("shop/", views.shop, name="shop"),
-    
-
-# Buy Now (Direct Payment)
-    path('buy-now/<uuid:product_id>/', views.buy_now, name='buy_now'),
-    
-    path('checkout/<uuid:product_id>/', views.checkout, name='checkout'),
-    path('download/<uuid:product_id>/', views.download_product, name='download_product'),
-    path('payment/verify/', views.verify_payment, name='verify_payment'),
-    path('payment/success/', views.payment_success, name='payment_success'),
-    path('webhook/paystack/', views.paystack_webhook, name='paystack_webhook'),
-
-    
-
+    # 'shop' moved to apps.catalog (product_list/product_detail) - see
+    # config/urls.py. Old buy_now/checkout/download_product/verify_payment/
+    # payment_success/paystack_webhook retired - see docs/28_DECISIONS.md.
 
     # ================= admin dashboard ==========
     path('contact/', views.contact_admin, name='contact'),
+    path('password-verify/', views.password_verify, name='password_verify'),
     path('custom_login/', login_view, name='custom_login'),
     path('custom_signup/', signup_view, name='custom_signup'),
     path('base/', custom_admin_view, name='custom_admin'),
@@ -46,6 +36,7 @@ urlpatterns = [
     path('dashboard/orders/', views.admin_orders, name='admin_orders'),
     path('dashboard/products/', views.admin_products, name='admin_products'),
     path('admin-panel/products/add/', views.add_product, name='add_product'),
+    path('admin-panel/products/edit/<uuid:pk>/', views.edit_product, name='edit_product'),
     path('dashboard/users/', views.admin_users, name='admin_users'),
     path('dashboard/messages/', views.admin_messages, name='admin_messages'),
     path('dashboard/product/delete/<uuid:pk>/', views.delete_product, name='delete_product'),

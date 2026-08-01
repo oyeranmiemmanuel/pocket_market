@@ -1,2 +1,24 @@
-<h1>Payment Successful 🎉</h1>
-<p>Your order has been confirmed.</p>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Payment Successful</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f4f6f8; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+        .card { background: white; border-radius: 12px; padding: 40px; max-width: 420px; width: 100%; box-shadow: 0 5px 20px rgba(0,0,0,0.08); text-align: center; }
+        h1 { color: #2c3e50; margin-bottom: 10px; font-size: 24px; }
+        p { color: #666; }
+        .ref { color: #4f46e5; font-weight: 600; }
+        a.btn { display:inline-block; margin-top: 20px; padding: 12px 24px; background: #4f46e5; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; }
+        a.btn:hover { background: #4338ca; }
+    </style>
+</head>
+<body>
+<div class="card">
+    <h1>Payment Successful 🎉</h1>
+    <p>Your order <span class="ref">{{ order.reference }}</span> has been confirmed.</p>
+    <p>Total paid: ₦{{ order.total }}</p>
+    <a class="btn" href="{% url 'orders:order_detail' order.reference %}">View order</a>
+</div>
+</body>
+</html>

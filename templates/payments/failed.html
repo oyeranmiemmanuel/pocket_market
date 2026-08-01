@@ -1,2 +1,23 @@
-<h1>Payment Failed ❌</h1>
-<p>Please try again.</p>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Payment Failed</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f4f6f8; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+        .card { background: white; border-radius: 12px; padding: 40px; max-width: 420px; width: 100%; box-shadow: 0 5px 20px rgba(0,0,0,0.08); text-align: center; }
+        h1 { color: #2c3e50; margin-bottom: 10px; font-size: 24px; }
+        p { color: #666; }
+        a.btn { display:inline-block; margin-top: 20px; padding: 12px 24px; background: #4f46e5; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; }
+        a.btn:hover { background: #4338ca; }
+    </style>
+</head>
+<body>
+<div class="card">
+    <h1>Payment Failed ❌</h1>
+    <p>We couldn't confirm payment for order <strong>{{ order.reference }}</strong>.</p>
+    <p>Please try again or contact support if you were charged.</p>
+    <a class="btn" href="{% url 'orders:order_detail' order.reference %}">Back to order</a>
+</div>
+</body>
+</html>

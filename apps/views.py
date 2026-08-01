@@ -360,6 +360,42 @@ def add_product(request):
     )
 
 
+@login_required
+@user_passes_test(is_admin)
+def edit_product(request, pk):
+
+    product = get_object_or_404(Product, pk=pk)
+
+    if request.method == 'POST':
+        form = ProductForm(
+            request.POST,
+            request.FILES,
+            instance=product,
+        )
+
+        if form.is_valid():
+            form.save()
+
+            messages.success(
+                request,
+                "Product updated successfully."
+            )
+
+            return redirect('admin_products')
+
+    else:
+        form = ProductForm(instance=product)
+
+    return render(
+        request,
+        'custom_admin/edit_product.html',
+        {
+            'form': form,
+            'product': product,
+        }
+    )
+
+
 
 
 
@@ -410,232 +446,11 @@ def admin_panel(request):
 
 
 # ====================== SHOP & PAYMENT ======================
-def shop(request):
-    products = Product.objects.filter(is_active=True)
-
-    return render(request, 'services/shop.html', {'products': products})
-
-
-def checkout(request, product_id):
-    product = get_object_or_404(Product, id=product_id)
-
-    if request.method == "POST":
-        full_name = request.POST.get('full_name', '').strip()
-        email = request.POST.get('email', '').strip()
-        phone = request.POST.get('phone', '').strip()
-
-        if not full_name or not email:
-            messages.error(request, "Full Name and Email are required.")
-            return render(request, 'payment/checkout.html', {'product': product})
-
-        amount_in_kobo = int(product.price * 100)
-        reference = str(uuid.uuid4())
-
-        try:
-            order = Order.objects.create(
-                user=request.user if request.user.is_authenticated else None,
-                full_name=full_name,
-                email=email,
-                phone=phone,
-                amount=product.price,
-                reference=reference,
-            )
-
-            url = "https://api.paystack.co/transaction/initialize"
-            headers = {
-                "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}",
-                "Content-Type": "application/json",
-            }
-            data = {
-                "email": email,
-                "amount": amount_in_kobo,
-                "reference": reference,
-                "callback_url": "http://toptech.pythonanywhere.com/payment/verify/",
-                "metadata": {
-                    "product_id": product.id,
-                    "product_name": product.name,
-                    "is_digital": product.is_digital
-                }
-            }
-
-            response = requests.post(url, json=data, headers=headers, timeout=10)
-            res_data = response.json()
-
-            if res_data.get('status') is True:
-                return redirect(res_data['data']['authorization_url'])
-            else:
-                messages.error(request, f"Paystack Error: {res_data.get('message', 'Unknown error')}")
-                print("Paystack Response:", res_data)
-
-        except Exception as e:
-            messages.error(request, f"Error: {str(e)}")
-            print("Checkout Exception:", str(e))
-
-        return redirect('checkout', product_id=product_id)
-
-    return render(request, 'payment/checkout.html', {'product': product})
-
-
-def verify_payment(request):
-    reference = request.GET.get('reference')
-
-    if not reference:
-        messages.error(request, "No payment reference found.")
-        return redirect('shop')
-
-    try:
-        # Verify with Paystack
-        url = f"https://api.paystack.co/transaction/verify/{reference}"
-        headers = {"Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}"}
-
-        response = requests.get(url, headers=headers)
-        res_data = response.json()
-
-        if res_data.get('status') and res_data['data']['status'] == 'success':
-            order = Order.objects.get(reference=reference)
-            order.verified = True
-            order.status = 'paid'
-            # Product not yet delivered
-            order.purchase_completed = False
-            order.save()
-
-
-            # When download access, product activation, or order fulfillment succeeds:
-
-            order.purchase_completed = True
-            order.status = 'completed'
-            order.save()
-
-
-            product_id = res_data['data'].get('metadata', {}).get('product_id')
-
-            if product_id:
-                product = Product.objects.get(id=product_id)
-
-                if product.is_digital and product.digital_file:
-                    # Digital Product → Auto Download
-                    return redirect('download_product', product_id=product.id)
-                else:
-                    # Physical Product → Show Success Message
-                    return render(request, 'payment/payment_success_physical.html', {
-                        'order': order,
-                        'product': product
-                    })
-
-            messages.success(request, "Payment successful!")
-            return redirect('shop')
-
-        else:
-            messages.error(request, "Payment verification failed.")
-            return redirect('shop')
-
-    except Exception as e:
-        messages.error(request, f"Error: {str(e)}")
-        return redirect('shop')    
-
-
-def payment_success(request):
-    return render(request, 'payment/payment_success.html')
-    
-
-@csrf_exempt
-
-
-
-def download_product(request, product_id):
-    product = get_object_or_404(Product, id=product_id)
-
-    if not product.is_digital or not product.digital_file:
-        messages.error(request, "This product is not available for download.")
-        return redirect('shop')
-
-    response = HttpResponse(product.digital_file, content_type='application/octet-stream')
-    response['Content-Disposition'] = f'attachment; filename="{product.digital_file.name.split("/")[-1]}"'
-    
-    return response
-
-
-
-def paystack_webhook(request):
-    """Secure webhook to verify payments from Paystack"""
-    
-    # Get Paystack signature from header
-    paystack_signature = request.headers.get('x-paystack-signature')
-    
-    if not paystack_signature:
-        return HttpResponse(status=400)
-
-    # Get raw body
-    body = request.body
-    
-    # Verify signature (Security)
-    secret = settings.PAYSTACK_SECRET_KEY.encode('utf-8')
-    computed_signature = hmac.new(secret, body, hashlib.sha512).hexdigest()
-
-    if not hmac.compare_digest(paystack_signature, computed_signature):
-        return HttpResponse(status=401)  # Invalid signature
-
-    # Process the event
-    try:
-        event = json.loads(body)
-        event_type = event.get('event')
-
-        if event_type == 'charge.success':
-            reference = event['data']['reference']
-            
-            try:
-                order = Order.objects.get(reference=reference)
-                order.verified = True
-                order.status = 'paid'
-                order.save()
-
-                print(f"✅ Payment confirmed via webhook for Order: {reference}")
-                
-            except Order.DoesNotExist:
-                print(f"⚠️ Order not found: {reference}")
-
-        return HttpResponse(status=200)
-
-    except Exception as e:
-        print("Webhook Error:", str(e))
-        return HttpResponse(status=400)
-
-
-def buy_now(request, product_id):
-    pass 
-    """Direct Buy Now - Initialize Payment for single product"""
-    product = get_object_or_404(Product, id=product_id)
-
-    amount = int(product.price * 100)  # Paystack uses kobo
-    reference = str(uuid.uuid4())
-
-    order = Order.objects.create(
-        email=request.user.email if request.user.is_authenticated else "guest@toptech.com",
-        amount=amount,
-        reference=reference
-    )
-
-    url = "https://api.paystack.co/transaction/initialize"
-    headers = {
-        "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}",
-        "Content-Type": "application/json",
-    }
-    data = {
-        "email": order.email,
-        "amount": amount,
-        "reference": reference,
-        "callback_url": "http://toptech.pythonanywhere.com/payment/verify/",
-    }
-
-    response = requests.post(url, json=data, headers=headers)
-    res_data = response.json()
-
-    if res_data.get("status"):
-        return redirect(res_data["data"]["authorization_url"])
-        
-    else:
-        messages.error(request, "Payment initialization failed.")
-        return redirect('shop')
+# Retired: the old single-product buy_now/checkout/verify_payment/
+# download_product/paystack_webhook flow. Superseded by the cart-based
+# checkout in apps.orders/apps.payments/apps.delivery - see
+# docs/28_DECISIONS.md. Product browsing now lives in apps.catalog
+# (product_list/product_detail), not here.
 
 # ====================== OTHER PAGES ======================
 
@@ -682,7 +497,7 @@ def contact_admin(request):
             )
 
             # Send Email Notification to Admin
-            admin_email = 'nicholasereh@gmailcom'   # ← Change this to your real email
+            admin_email = 'nicholasereh@gmail.com'
 
             send_mail(
                 subject=f"New Contact Message: {subject}",

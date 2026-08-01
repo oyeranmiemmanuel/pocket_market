@@ -44,6 +44,9 @@ INSTALLED_APPS = [
     "apps.accounts.apps.AccountsConfig",
     "apps.catalog.apps.CatalogConfig",
     "apps.cart.apps.CartConfig",
+    "apps.orders.apps.OrdersConfig",
+    "apps.payments.apps.PaymentsConfig",
+    "apps.delivery.apps.DeliveryConfig",
 ]
 
 LOGIN_URL = "custom_login"

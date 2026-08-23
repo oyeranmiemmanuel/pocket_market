@@ -8,7 +8,6 @@ venv/
 .venv/
 .nico/
 env/
-nico/
 
 # Django
 db.sqlite3

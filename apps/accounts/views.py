@@ -5,14 +5,30 @@ from django.conf import settings
 from django.shortcuts import redirect, render
 from django.template.loader import render_to_string
 from django.utils.encoding import force_bytes, force_str
-from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
+from django.utils.http import url_has_allowed_host_and_scheme, urlsafe_base64_decode, urlsafe_base64_encode
 from django.core.mail import EmailMultiAlternatives
+
+from apps.cart.services import merge_guest_cart_into_user
 
 from .forms import LoginForm, RegisterForm
 from .models import UserProfile
 from .tokens import email_verification_token
 
 User = get_user_model()
+
+
+def _safe_next_url(request, default='home'):
+    """
+    Reads ?next= (GET or POST) and returns it only if it's a safe local
+    redirect target - never trust this value blindly, it comes straight
+    from the URL.
+    """
+    next_url = request.POST.get('next') or request.GET.get('next')
+    if next_url and url_has_allowed_host_and_scheme(
+        next_url, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+    ):
+        return next_url
+    return default
 
 
 
@@ -61,6 +77,8 @@ def register_view(request):
     if request.user.is_authenticated:
         return redirect('home')
 
+    next_url = _safe_next_url(request, default='')
+
     if request.method == 'POST':
         form = RegisterForm(request.POST)
 
@@ -80,11 +98,14 @@ def register_view(request):
                 "Account created! Check your email for a verification link before logging in."
             )
 
-            return redirect('accounts:login')
+            login_url = 'accounts:login'
+            if next_url:
+                login_url += f'?next={next_url}'
+            return redirect(login_url)
     else:
         form = RegisterForm()
 
-    return render(request, 'accounts/signup.html', {'form': form})
+    return render(request, 'accounts/signup.html', {'form': form, 'next': next_url})
 
 
 def verify_email(request, uidb64, token):
@@ -110,6 +131,8 @@ def login_view(request):
     if request.user.is_authenticated:
         return redirect('home')
 
+    next_url = _safe_next_url(request, default='home')
+
     if request.method == 'POST':
         form = LoginForm(request.POST)
 
@@ -120,9 +143,13 @@ def login_view(request):
             user = authenticate(request, username=username, password=password)
 
             if user is not None:
+                # Must run before login() - it cycles the session key,
+                # after which the guest cart's session_key won't match.
+                merge_guest_cart_into_user(request, user)
+
                 login(request, user)
                 messages.success(request, "Login successful!")
-                return redirect('home')
+                return redirect(next_url)
 
             # authenticate() also returns None for correct credentials on
             # an inactive (unverified) account - check for that case
@@ -135,7 +162,7 @@ def login_view(request):
     else:
         form = LoginForm()
 
-    return render(request, 'accounts/login.html', {'form': form})
+    return render(request, 'accounts/login.html', {'form': form, 'next': next_url if next_url != 'home' else ''})
 
 
 def logout_view(request):

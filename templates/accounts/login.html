@@ -81,6 +81,7 @@
             <form method="POST" action="{% url 'accounts:login' %}" class="space-y-6">
 
                 {% csrf_token %}
+                <input type="hidden" name="next" value="{{ next }}">
 
                 <!-- Username -->
                 <div>
@@ -171,7 +172,7 @@
 
                 Don't have an account?
 
-                <a href="{% url 'accounts:register' %}"
+                <a href="{% url 'accounts:register' %}{% if next %}?next={{ next|urlencode }}{% endif %}"
                    class="font-semibold text-blue-300 hover:text-blue-200">
 
                     Create Account

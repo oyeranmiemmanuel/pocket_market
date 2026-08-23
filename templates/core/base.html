@@ -62,6 +62,54 @@
             <!-- Right Buttons -->
             <div class="hidden md:flex items-center gap-3">
 
+                <!-- Cart Icon + Popup -->
+                <div class="relative">
+                    <button id="nav-cart-toggle" type="button"
+                            class="relative p-3 text-gray-700 hover:text-blue-600 transition">
+                        <i class="fa-solid fa-cart-shopping text-xl"></i>
+                        <span id="nav-cart-count"
+                              class="absolute -top-1 -right-1 bg-red-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center {% if not nav_cart_count %}hidden{% endif %}">
+                            {{ nav_cart_count }}
+                        </span>
+                    </button>
+
+                    <div id="nav-cart-popup"
+                         class="hidden absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-2xl border border-gray-100 z-50">
+                        <div class="p-4 border-b border-gray-100 font-semibold text-gray-800">
+                            Your Cart
+                        </div>
+                        <div id="nav-cart-items" class="max-h-80 overflow-y-auto divide-y divide-gray-100">
+                            {% for item in nav_cart_items %}
+                            <div class="flex items-center gap-3 p-3" data-item-id="{{ item.id }}">
+                                <div class="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden shrink-0">
+                                    {% if item.product.image %}
+                                        <img src="{{ item.product.image.url }}" class="w-full h-full object-cover">
+                                    {% else %}
+                                        <i class="fa-solid fa-image text-gray-300"></i>
+                                    {% endif %}
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-sm font-medium text-gray-800 truncate">{{ item.product.name }}</p>
+                                    <p class="text-xs text-gray-500">{{ item.quantity }} x ₦{{ item.product.price }}</p>
+                                </div>
+                            </div>
+                            {% empty %}
+                            <p class="p-4 text-sm text-gray-400 text-center">Your cart is empty.</p>
+                            {% endfor %}
+                        </div>
+                        <div class="p-4 border-t border-gray-100">
+                            <div class="flex justify-between text-sm font-semibold text-gray-800 mb-3">
+                                <span>Total</span>
+                                <span id="nav-cart-total">₦{{ nav_cart_total }}</span>
+                            </div>
+                            <a href="{% url 'cart:cart_detail' %}"
+                               class="block text-center bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg transition">
+                                View Cart
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
                 <a href="{% url 'catalog:product_list' %}"
                    class="bg-blue-600 text-white px-5 py-3 rounded-lg hover:bg-blue-700 transition">
                     Shop
@@ -758,6 +806,102 @@ function closeNav() {
     document.body.classList.remove("overflow-hidden");
 }
 </script>
+
+<script>
+// ============== NAV CART POPUP + AJAX ADD TO CART ==============
+(function () {
+    const toggleBtn = document.getElementById('nav-cart-toggle');
+    const popup = document.getElementById('nav-cart-popup');
+
+    if (toggleBtn && popup) {
+        toggleBtn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            popup.classList.toggle('hidden');
+        });
+
+        document.addEventListener('click', function (e) {
+            if (!popup.contains(e.target) && !toggleBtn.contains(e.target)) {
+                popup.classList.add('hidden');
+            }
+        });
+    }
+
+    function getCookie(name) {
+        const match = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+        return match ? match.pop() : '';
+    }
+
+    function renderCartPopup(data) {
+        const countEl = document.getElementById('nav-cart-count');
+        const totalEl = document.getElementById('nav-cart-total');
+        const itemsEl = document.getElementById('nav-cart-items');
+
+        if (countEl) {
+            countEl.textContent = data.count;
+            countEl.classList.toggle('hidden', !data.count);
+        }
+        if (totalEl) {
+            totalEl.textContent = '₦' + data.total;
+        }
+        if (itemsEl) {
+            if (!data.items.length) {
+                itemsEl.innerHTML = '<p class="p-4 text-sm text-gray-400 text-center">Your cart is empty.</p>';
+            } else {
+                itemsEl.innerHTML = data.items.map(function (item) {
+                    const img = item.image_url
+                        ? '<img src="' + item.image_url + '" class="w-full h-full object-cover">'
+                        : '<i class="fa-solid fa-image text-gray-300"></i>';
+                    return (
+                        '<div class="flex items-center gap-3 p-3" data-item-id="' + item.item_id + '">' +
+                        '<div class="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden shrink-0">' + img + '</div>' +
+                        '<div class="flex-1 min-w-0">' +
+                        '<p class="text-sm font-medium text-gray-800 truncate">' + item.product_name + '</p>' +
+                        '<p class="text-xs text-gray-500">' + item.quantity + ' x \u20a6' + item.unit_price + '</p>' +
+                        '</div></div>'
+                    );
+                }).join('');
+            }
+        }
+    }
+
+    function showToast(message) {
+        if (!message) return;
+        const toast = document.createElement('div');
+        toast.textContent = message;
+        toast.className = 'fixed bottom-6 right-6 bg-gray-900 text-white px-5 py-3 rounded-lg shadow-xl z-50 text-sm';
+        document.body.appendChild(toast);
+        setTimeout(function () { toast.remove(); }, 2500);
+    }
+
+    // Any form with class="add-to-cart-form" submits via AJAX instead of
+    // navigating away - stays on the current page, updates the nav cart
+    // icon/popup, and shows a small confirmation toast.
+    document.addEventListener('submit', function (e) {
+        const form = e.target;
+        if (!form.classList || !form.classList.contains('add-to-cart-form')) return;
+
+        e.preventDefault();
+
+        fetch(form.action, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': getCookie('csrftoken'),
+            },
+            body: new FormData(form),
+        })
+            .then(function (resp) { return resp.json(); })
+            .then(function (data) {
+                renderCartPopup(data);
+                showToast(data.message);
+            })
+            .catch(function () {
+                showToast('Could not add item to cart.');
+            });
+    });
+})();
+</script>
+
 {% block extra_js %}
 {% endblock %}
 

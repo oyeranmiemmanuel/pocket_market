@@ -2,7 +2,7 @@ from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect, render
 
 from apps.cart.models import CartItem
-from apps.cart.services import get_or_create_cart
+from apps.cart.services import cart_json_response, get_or_create_cart, is_ajax_request
 
 from .models import Category, Product
 
@@ -47,7 +47,12 @@ def product_detail(request, slug):
             item.quantity += quantity
             item.save()
 
-        messages.success(request, f"{product.name} added to cart.")
+        message = f"{product.name} added to cart."
+
+        if is_ajax_request(request):
+            return cart_json_response(cart, message)
+
+        messages.success(request, message)
         return redirect("cart:cart_detail")
 
     related_products = (

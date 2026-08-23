@@ -321,6 +321,142 @@ undetected bugs:
   order marked paid -> digital file downloads correctly -> cross-user
   download attempt correctly blocked.
 
+## Admin signup email field bug
+
+- `custom_signup.html` (the admin-panel signup template) rendered
+  `{{ form.email }}`, but `signup_view` used Django's plain, unmodified
+  `UserCreationForm` - which has no `email` field at all. Whatever the
+  user typed into that box was silently dropped; `user.email` stayed
+  blank; the verification email had nowhere real to go. This blocked the
+  entire "create an admin, verify, log in via custom_login, add a
+  product" flow at the very first step.
+- Fixed with a new `AdminSignupForm` (`apps/forms.py`) - a proper
+  `UserCreationForm` subclass with an actual `email = forms.EmailField()`,
+  same pattern already used for the customer-facing `RegisterForm` in
+  `apps.accounts.forms`.
+- Verified live, full flow: signup (email correctly saved and verification
+  email correctly sent to the real address) -> login blocked while
+  unverified -> verification link activates the account -> login succeeds
+  -> product successfully created via `/admin-panel/products/add/`.
+
+## Redirect loop fix (ERR_TOO_MANY_REDIRECTS)
+
+- `login_view` (`/custom_login/`) redirected *any* authenticated user
+  straight to `admin_dashboard`, with no check that they were actually
+  staff. `admin_dashboard` requires `is_admin` via `user_passes_test`,
+  which (with no explicit `login_url`) redirects failures back to
+  `settings.LOGIN_URL` = `custom_login`. Net effect: any authenticated
+  but non-staff user (a regular customer account, for example) landing on
+  `/custom_login/` bounced forever between the two - `custom_login` ->
+  `admin_dashboard` -> `custom_login` -> ... - `ERR_TOO_MANY_REDIRECTS`.
+- Fixed by checking `is_admin(request.user)` before auto-redirecting in
+  `login_view`, not just `is_authenticated`.
+- Verified live: a regular customer visiting `/custom_login/` now sees
+  the login page normally (no loop); the same customer hitting
+  `/admin-panel/` directly redirects exactly once to login (not
+  infinitely); a real staff user visiting `/custom_login/` while already
+  logged in still gets the intended convenience auto-redirect to the
+  dashboard.
+
+## Admin sidebar overlap + wrong login redirect on customer pages
+
+- **Sidebar overlapping content**: `static/custom_admin/base.css` styled
+  the content area with a bare `main{...}` element selector, but
+  `custom_admin/base.html`'s actual markup uses `<div class="main-content">`
+  - there's no `<main>` tag anywhere. That CSS rule (and its two responsive
+  breakpoint versions) never matched anything, so the content div had no
+  left margin at all and sat directly underneath the `position:fixed`
+  sidebar. Fixed all three occurrences to target `.main-content` instead
+  of `main`. Verified via the static file finder that the fixed selector
+  is present and the old one is gone.
+- **Checkout (and other customer pages) redirecting to the admin login**:
+  `settings.LOGIN_URL = "custom_login"` is the *global* fallback Django's
+  `@login_required` uses when no `login_url` is explicitly passed. That's
+  correct for the actual admin views (they're paired with
+  `@user_passes_test(is_admin)` and are meant to go to `custom_login`),
+  but six genuinely customer-facing views were using bare `@login_required`
+  and silently inheriting that admin default too:
+  `apps.views.password_verify`, `apps.orders.views.checkout_view`/
+  `order_list`/`order_detail`/`download_product`, and
+  `apps.payments.views.initiate_payment`. Fixed by adding an explicit
+  `login_url='accounts:login'` to each. Verified live: all six now
+  correctly redirect anonymous visitors to `/accounts/login/`, while the
+  real admin views (`/admin-panel/`, etc.) are unchanged and still
+  correctly redirect to `/custom_login/`.
+
+## Nav cart icon, AJAX add-to-cart, and guest checkout with merge-on-login
+
+- New `apps.cart.context_processors.cart_context` - makes cart item
+  count/items/total available on every page for the nav icon, without
+  forcing a Cart/session to be created for visitors who've never touched
+  the cart (only reads one if it already exists).
+- Cart icon + dropdown popup added to `core/base.html`'s nav (badge only
+  shows when count > 0), with "View Cart" link and live item list.
+- `add_to_cart`/`update_cart_item`/`remove_from_cart` (cart app) and
+  `product_detail`'s Add to Cart form (catalog app) now detect AJAX
+  requests (`X-Requested-With: XMLHttpRequest`) and return a shared JSON
+  shape (`apps.cart.services.cart_json_response`) instead of redirecting
+  - clicking "Add to Cart" now stays on the product page and updates the
+  nav icon/popup live via JS, rather than navigating to the cart page.
+  Plain non-JS form submission still works as a fallback (redirects as
+  before), so this is progressive enhancement, not a hard requirement.
+- **Guest checkout flow**, matching the "browse/cart free, account
+  required only at checkout" pattern common on major ecommerce sites:
+  - Guests already could browse/add/remove/update/view cart with no
+    login required (cart already supported session-based carts) -
+    confirmed live, no changes needed there.
+  - Checkout already required login (blocks guests) - confirmed.
+  - `login_view` previously always redirected to `'home'` after login,
+    ignoring any `?next=` - so a guest sent to login from checkout would
+    land on the homepage instead of back at checkout. Fixed: reads
+    `next` from GET/POST, validated via
+    `django.utils.http.url_has_allowed_host_and_scheme` (never blindly
+    trusts a URL param), redirects there after successful login.
+  - `register_view` now preserves `next` through registration -> the
+    "check your email" step -> the login link, so a guest who registers
+    mid-checkout instead of logging in still ends up back at checkout
+    after verifying and logging in.
+  - **Cart merge on login**: new `apps.cart.services.merge_guest_cart_into_user`,
+    called *before* `django.contrib.auth.login()` (must run first -
+    `login()` cycles the session key, after which the guest cart's
+    `session_key` would no longer match anything). Combines quantities
+    per product rather than overwriting, in case the user's own account
+    already had cart items from a previous session. Guest cart is hard-
+    deleted after merging (soft-delete would leave its `session_key`
+    occupying the unique constraint for no reason).
+  - Verified live end-to-end: guest browses and adds two products (one
+    of which the logging-in user already independently had 1 of in their
+    own cart) -> guest hits checkout -> blocked, redirected to
+    `/accounts/login/?next=/orders/checkout/` -> logs in -> lands back on
+    `/orders/checkout/` (not home) -> merged cart correctly shows the
+    guest-only item at its own quantity and the shared item's quantities
+    correctly added together (1 + 3 = 4) -> old guest cart row confirmed
+    actually gone afterward.
+
+## Admin dashboard mobile responsiveness
+
+- Previous mobile behavior (`@media(max-width:768px)`) made the sidebar
+  `position:relative` and stacked it above the page content - meaning on
+  a phone, a visitor had to scroll past the entire full-height nav list
+  before reaching any actual dashboard content. Replaced with a proper
+  slide-out overlay: sidebar stays `position:fixed` (its normal desktop
+  behavior) but is translated off-screen (`transform:translateX(-100%)`)
+  by default on mobile, with a hamburger toggle button (only visible
+  ≤768px) and a semi-transparent backdrop that both open/close it. Tapping
+  a nav link or the backdrop closes it automatically.
+- Added a responsive-table rule (`table{ display:block; overflow-x:auto; }`
+  at the same breakpoint) so the products/orders/users/messages admin
+  tables scroll horizontally on narrow screens instead of squeezing
+  columns unreadably or breaking the page layout.
+- Added a `@media(max-width:480px)` tier for small phones specifically
+  (tighter padding, smaller header text).
+- Verified live: static file finder confirms all new CSS rules
+  (`#admin-sidebar-toggle`, `#admin-sidebar-backdrop`, `aside.open`,
+  responsive `table`) are present in the served stylesheet; all five
+  admin pages (dashboard, products, orders, users, messages) render
+  correctly with the toggle button and backdrop markup present - the fix
+  is sitewide since they all extend the same `custom_admin/base.html`.
+
 ## Database
 
 - `manage.py runserver` verified end-to-end multiple times across this

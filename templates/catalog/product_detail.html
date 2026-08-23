@@ -46,7 +46,7 @@
             {% if product.stock > 0 %}
                 <p class="text-sm text-green-600 mb-4"><i class="fa-solid fa-circle-check"></i> In stock ({{ product.stock }} available)</p>
 
-                <form method="post" class="flex items-center gap-4">
+                <form method="post" action="{% url 'catalog:product_detail' product.slug %}" class="add-to-cart-form flex items-center gap-4">
                     {% csrf_token %}
                     <label for="quantity" class="text-sm text-gray-600">Qty</label>
                     <input type="number" id="quantity" name="quantity" value="1" min="1" max="{{ product.stock }}"

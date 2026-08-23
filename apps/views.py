@@ -3,7 +3,7 @@ from django.http import HttpResponse
 from django.contrib import messages
 from django.core.mail import send_mail
 from django.conf import settings
-from .forms import PasswordVerificationForm, ProductForm
+from .forms import AdminSignupForm, PasswordVerificationForm, ProductForm
 from .models import ContactMessage
 from django.contrib.auth import login, authenticate, logout, get_user_model
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
@@ -78,7 +78,7 @@ def home(request):
 
 
 
-@login_required
+@login_required(login_url='accounts:login')
 def password_verify(request):
     """Simple password verification page (e.g., before sensitive actions)"""
     if request.method == 'POST':
@@ -118,7 +118,7 @@ def is_admin(user):
 
 def signup_view(request):
     if request.method == 'POST':
-        form = UserCreationForm(request.POST)
+        form = AdminSignupForm(request.POST)
         if form.is_valid():
             user = form.save(commit=False)
             user.is_active = False
@@ -129,7 +129,7 @@ def signup_view(request):
             messages.success(request, "Account created! Please check your email to verify.")
             return redirect('custom_login')
     else:
-        form = UserCreationForm()
+        form = AdminSignupForm()
 
     return render(request, 'custom_admin/custom_signup.html', {'form': form})
 
@@ -178,7 +178,7 @@ def verify_email(request, uidb64, token):
 # =========================
 def login_view(request):
 
-    if request.user.is_authenticated:
+    if request.user.is_authenticated and is_admin(request.user):
         return redirect('admin_dashboard')
 
     if request.method == 'POST':

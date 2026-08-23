@@ -12,7 +12,7 @@ from .services import create_order_from_cart
 from .services.checkout import validate_cart_stock
 
 
-@login_required
+@login_required(login_url='accounts:login')
 def checkout_view(request):
     cart = get_or_create_cart(request)
 
@@ -56,19 +56,19 @@ def checkout_view(request):
     return render(request, "orders/checkout.html", {"form": form, "cart": cart})
 
 
-@login_required
+@login_required(login_url='accounts:login')
 def order_list(request):
     orders = Order.objects.filter(user=request.user).order_by("-created_at")
     return render(request, "orders/order_list.html", {"orders": orders})
 
 
-@login_required
+@login_required(login_url='accounts:login')
 def order_detail(request, reference):
     order = get_object_or_404(Order, reference=reference, user=request.user)
     return render(request, "orders/order_detail.html", {"order": order})
 
 
-@login_required
+@login_required(login_url='accounts:login')
 def download_product(request, reference, item_id):
     """
     Digital file download for a purchased item.

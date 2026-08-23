@@ -16,7 +16,7 @@ from apps.orders.models import Order
 from .services import PaymentInitializationError, initialize_payment, verify_payment
 
 
-@login_required
+@login_required(login_url='accounts:login')
 def initiate_payment(request, order_reference):
     order = get_object_or_404(Order, reference=order_reference, user=request.user)
 

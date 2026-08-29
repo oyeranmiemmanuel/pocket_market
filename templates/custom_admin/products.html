@@ -77,12 +77,19 @@ tr:hover{
 
 <h1>Products</h1>
 
+<div style="margin-bottom:20px;">
+    <a href="{% url 'add_product' %}" class="add-product-btn">
+        Add Product
+    </a>
+</div>
+
 <table>
     <tr>
         <th>ID</th>
         <th>Name</th>
         <th>Price</th>
         <th>Created</th>
+        <th>Actions</th>
     </tr>
 
     {% for product in products %}
@@ -91,31 +98,18 @@ tr:hover{
         <td>{{ product.name }}</td>
         <td>₦{{ product.price }}</td>
         <td>{{ product.created_at }}</td>
+        <td>
+            <a href="{% url 'edit_product' product.id %}"
+               class="edit-btn">
+                Edit
+            </a>
+            <a href="{% url 'delete_product' product.id %}"
+               class="delete-btn">
+                Delete
+            </a>
+        </td>
     </tr>
-
-
-    <div style="margin-bottom:20px;">
-    <a href="{% url 'add_product' %}" class="add-product-btn">
-        Add Product
-    </a>
-    </div>
-
-
-
-    <td>
-    <a href="{% url 'edit_product' product.id %}"
-       class="edit-btn">
-        Edit
-    </a>
-    <a href="{% url 'delete_product' product.id %}"
-       class="delete-btn"
-       onclick>
-        Delete
-    </a>
-</td>
     {% endfor %}
-
-    
 </table>
 
 

@@ -3,21 +3,315 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <link rel="stylesheet" href="{% static 'custom_admin/base.css' %}?v=1">
+    
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Admin Dashboard{% endblock %}</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+    <style>/* ===============================
+   RESET
+================================= */
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
+
+body{
+    font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background:#f4f6f9;
+    color:#2c3e50;
+}
+
+/* ===============================
+   LAYOUT
+================================= */
+.admin-wrapper{
+    display:flex;
+    min-height:100vh;
+}
+
+/* ===============================
+   SIDEBAR
+================================= */
+aside{
+    width:260px;
+    background:#2c3e50;
+    color:white;
+    position:fixed;
+    left:0;
+    top:0;
+    height:100vh;
+    overflow-y:auto;
+    box-shadow:4px 0 15px rgba(0,0,0,.1);
+}
+
+.logo{
+    padding:25px;
+    text-align:center;
+    font-size:24px;
+    font-weight:700;
+    border-bottom:1px solid #34495e;
+    letter-spacing:1px;
+}
+
+.nav-menu{
+    list-style:none;
+    margin-top:20px;
+}
+
+.nav-menu li{
+    width:100%;
+}
+
+.nav-menu li a{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    padding:16px 25px;
+    color:#bdc3c7;
+    text-decoration:none;
+    transition:.3s;
+    font-size:15px;
+}
+
+.nav-menu li a:hover,
+.nav-menu li a.active{
+    background:#34495e;
+    color:#fff;
+    border-left:4px solid #3498db;
+}
+
+.nav-menu li a i{
+    width:20px;
+}
+
+/* ===============================
+   MAIN CONTENT
+================================= */
+.main-content{
+    flex:1;
+    margin-left:260px;
+}
+
+/* ===============================
+   HEADER
+================================= */
+header{
+    background:white;
+    padding:20px 30px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    box-shadow:0 2px 15px rgba(0,0,0,.08);
+}
+
+header h2{
+    font-size:24px;
+    color:#2c3e50;
+}
+
+header strong{
+    color:#3498db;
+}
+
+/* ===============================
+   CONTENT AREA
+================================= */
+.content{
+    padding:30px;
+}
+
+.content h1{
+    margin-bottom:20px;
+    color:#2c3e50;
+}
+
+/* ===============================
+   CARDS
+================================= */
+.card{
+    background:white;
+    border-radius:12px;
+    padding:25px;
+    box-shadow:0 4px 15px rgba(0,0,0,.08);
+    transition:.3s;
+}
+
+.card:hover{
+    transform:translateY(-3px);
+}
+
+.card h3{
+    color:#7f8c8d;
+    margin-bottom:10px;
+    font-size:15px;
+}
+
+.card h2{
+    color:#2c3e50;
+    font-size:32px;
+    font-weight:700;
+}
+
+/* ===============================
+   STAT GRID
+================================= */
+.stats-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+    gap:20px;
+    margin:30px 0;
+}
+
+/* ===============================
+   TABLES
+================================= */
+.admin-table{
+    width:100%;
+    border-collapse:collapse;
+    background:white;
+    margin-top:20px;
+}
+
+.admin-table th,
+.admin-table td{
+    padding:15px;
+    text-align:left;
+    border-bottom:1px solid #e5e7eb;
+}
+
+.admin-table th{
+    background:#f8fafc;
+    color:#475569;
+    font-weight:600;
+}
+
+.admin-table tr:hover{
+    background:#f8fafc;
+}
+
+/* ===============================
+   BADGES
+================================= */
+.status-badge{
+    display:inline-block;
+    padding:6px 14px;
+    border-radius:50px;
+    font-size:13px;
+    font-weight:600;
+}
+
+.status-badge.success{
+    background:#dcfce7;
+    color:#166534;
+}
+
+.status-badge.pending{
+    background:#fef3c7;
+    color:#854d0e;
+}
+
+.status-badge.danger{
+    background:#fee2e2;
+    color:#b91c1c;
+}
+
+/* ===============================
+   BUTTONS
+================================= */
+.btn-small{
+    display:inline-block;
+    padding:8px 14px;
+    border-radius:6px;
+    text-decoration:none;
+    font-size:13px;
+    transition:.3s;
+}
+
+.btn-small.primary{
+    background:#3498db;
+    color:white;
+}
+
+.btn-small.primary:hover{
+    background:#2980b9;
+}
+
+.btn-small.danger{
+    background:#fee2e2;
+    color:#b91c1c;
+}
+
+.btn-small.danger:hover{
+    background:#fecaca;
+}
+
+/* ===============================
+   LOGOUT BUTTON
+================================= */
+.logout-btn{
+    width:100%;
+    background:none;
+    border:none;
+    color:#e74c3c;
+    padding:15px 25px;
+    text-align:left;
+    cursor:pointer;
+    font-size:15px;
+}
+
+.logout-btn:hover{
+    background:#34495e;
+}
+
+/* ===============================
+   RESPONSIVE
+================================= */
+@media(max-width:768px){
+
+    aside{
+        width:220px;
+    }
+
+    .main-content{
+        margin-left:220px;
+    }
+
+    header{
+        flex-direction:column;
+        gap:15px;
+        align-items:flex-start;
+    }
+
+    .content{
+        padding:20px;
+    }
+}
+
+@media(max-width:576px){
+
+    aside{
+        width:100%;
+        height:auto;
+        position:relative;
+    }
+
+    .main-content{
+        margin-left:0;
+    }
+
+    .admin-wrapper{
+        flex-direction:column;
+    }
+}</style>
     
 </head>
 <body>
 
 <div class="admin-wrapper">
-
-    <!-- Mobile backdrop - closes sidebar when tapped -->
-    <div id="admin-sidebar-backdrop"></div>
-
     <!-- Sidebar -->
-    <aside id="admin-sidebar">
+    <aside>
         <div class="logo">MyApp Admin</div>
         <ul class="nav-menu">
             <li><a href="{% url 'admin_dashboard' %}" class="active"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
@@ -33,12 +327,7 @@
     <!-- Main Content -->
     <div class="main-content">
         <header>
-            <div style="display:flex; align-items:center; gap:15px;">
-                <button id="admin-sidebar-toggle" type="button" aria-label="Toggle menu">
-                    <i class="fas fa-bars"></i>
-                </button>
-                <h2>Dashboard</h2>
-            </div>
+            <h2>Dashboard</h2>
             <div>
                 Welcome, <strong>{{ request.user.username }}</strong>
                 <li>
@@ -57,35 +346,6 @@
         </div>
     </div>
 </div>
-
-<script>
-(function () {
-    const sidebar = document.getElementById('admin-sidebar');
-    const backdrop = document.getElementById('admin-sidebar-backdrop');
-    const toggleBtn = document.getElementById('admin-sidebar-toggle');
-
-    function closeSidebar() {
-        sidebar.classList.remove('open');
-        backdrop.classList.remove('visible');
-    }
-
-    if (toggleBtn) {
-        toggleBtn.addEventListener('click', function () {
-            sidebar.classList.toggle('open');
-            backdrop.classList.toggle('visible');
-        });
-    }
-
-    if (backdrop) {
-        backdrop.addEventListener('click', closeSidebar);
-    }
-
-    // Close automatically after tapping a nav link on mobile
-    document.querySelectorAll('.nav-menu a').forEach(function (link) {
-        link.addEventListener('click', closeSidebar);
-    });
-})();
-</script>
 
 </body>
 </html>

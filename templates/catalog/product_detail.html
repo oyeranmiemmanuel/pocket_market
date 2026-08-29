@@ -88,5 +88,28 @@
     </div>
     {% endif %}
 
+    {% if recently_viewed %}
+    <div class="mt-16">
+        <h2 class="text-xl font-bold text-gray-800 mb-6">Recently Viewed</h2>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+            {% for rv in recently_viewed %}
+            <a href="{% url 'catalog:product_detail' rv.slug %}" class="block bg-white rounded-xl shadow hover:shadow-lg transition overflow-hidden">
+                <div class="aspect-square bg-gray-100 flex items-center justify-center overflow-hidden">
+                    {% if rv.image %}
+                        <img src="{{ rv.image.url }}" alt="{{ rv.name }}" class="w-full h-full object-cover">
+                    {% else %}
+                        <i class="fa-solid fa-image text-3xl text-gray-300"></i>
+                    {% endif %}
+                </div>
+                <div class="p-3">
+                    <h3 class="text-sm font-semibold text-gray-800 truncate">{{ rv.name }}</h3>
+                    <p class="text-sm font-bold text-indigo-600">₦{{ rv.price }}</p>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
 </div>
 {% endblock %}

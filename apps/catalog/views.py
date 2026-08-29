@@ -27,9 +27,22 @@ def product_list(request):
     })
 
 
+RECENTLY_VIEWED_SESSION_KEY = "recently_viewed_products"
+RECENTLY_VIEWED_MAX = 8
+
+
+def _track_recently_viewed(request, product):
+    """Keep a session-stored list of recently viewed product slugs, most recent first."""
+    viewed = request.session.get(RECENTLY_VIEWED_SESSION_KEY, [])
+    viewed = [slug for slug in viewed if slug != product.slug]
+    viewed.insert(0, product.slug)
+    request.session[RECENTLY_VIEWED_SESSION_KEY] = viewed[:RECENTLY_VIEWED_MAX]
+
+
 def product_detail(request, slug):
     """Single product page - real 'Add to Cart' entry point."""
     product = get_object_or_404(Product.active, slug=slug, is_active=True)
+    _track_recently_viewed(request, product)
 
     if request.method == "POST":
         try:
@@ -61,7 +74,19 @@ def product_detail(request, slug):
         if product.category else []
     )
 
+    viewed_slugs = [
+        slug for slug in request.session.get(RECENTLY_VIEWED_SESSION_KEY, [])
+        if slug != product.slug
+    ]
+    recently_viewed = []
+    if viewed_slugs:
+        products_by_slug = Product.active.in_bulk(viewed_slugs, field_name="slug")
+        recently_viewed = [
+            products_by_slug[slug] for slug in viewed_slugs if slug in products_by_slug
+        ]
+
     return render(request, "catalog/product_detail.html", {
         "product": product,
         "related_products": related_products,
+        "recently_viewed": recently_viewed,
     })

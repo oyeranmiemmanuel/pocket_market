@@ -82,35 +82,10 @@ aside{
 /* =========================
    MAIN CONTENT
 ========================= */
-.main-content{
+main{
     margin-left:270px;
     width:calc(100% - 270px);
     padding:30px;
-}
-
-/* =========================
-   MOBILE SIDEBAR TOGGLE
-========================= */
-#admin-sidebar-toggle{
-    display:none;
-    background:none;
-    border:none;
-    font-size:1.4rem;
-    color:#0097a7;
-    cursor:pointer;
-    padding:8px;
-}
-
-#admin-sidebar-backdrop{
-    display:none;
-    position:fixed;
-    inset:0;
-    background:rgba(0,0,0,0.5);
-    z-index:998;
-}
-
-#admin-sidebar-backdrop.visible{
-    display:block;
 }
 
 /* =========================
@@ -232,7 +207,7 @@ form button:hover{
         width:220px;
     }
 
-    .main-content{
+    main{
         margin-left:220px;
         width:calc(100% - 220px);
     }
@@ -240,71 +215,29 @@ form button:hover{
 
 @media(max-width:768px){
 
-    #admin-sidebar-toggle{
-        display:inline-block;
+    .admin-wrapper{
+        flex-direction:column;
     }
 
     aside{
-        transform:translateX(-100%);
-        transition:transform 0.3s ease;
-        z-index:999;
-        width:270px;
+        position:relative;
+        width:100%;
+        height:auto;
     }
 
-    aside.open{
-        transform:translateX(0);
-    }
-
-    .main-content{
+    main{
         margin-left:0;
         width:100%;
         padding:20px;
     }
 
     header{
-        flex-direction:row;
-        justify-content:space-between;
+        flex-direction:column;
         gap:15px;
-        text-align:left;
-        padding:15px 20px;
-    }
-
-    header h2{
-        font-size:1.3rem;
+        text-align:center;
     }
 
     .content h1{
         font-size:1.6rem;
-    }
-
-    .stats-grid{
-        grid-template-columns:1fr;
-    }
-
-    /* Tables scroll horizontally instead of squeezing/breaking layout */
-    table{
-        display:block;
-        overflow-x:auto;
-        white-space:nowrap;
-        -webkit-overflow-scrolling:touch;
-    }
-}
-
-@media(max-width:480px){
-
-    .main-content{
-        padding:15px;
-    }
-
-    .card{
-        padding:18px;
-    }
-
-    header h2{
-        font-size:1.1rem;
-    }
-
-    header div strong{
-        display:block;
     }
 }

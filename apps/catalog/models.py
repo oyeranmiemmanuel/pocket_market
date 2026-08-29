@@ -45,6 +45,23 @@ class Product(BaseModel):
         related_name="products",
     )
 
+    seller = models.ForeignKey(
+        "sellers.SellerProfile",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="products",
+        help_text="Null = platform-owned product (100% of the sale goes "
+                   "to the platform, no seller earnings are created).",
+    )
+
+    # Per-product override of the seller's own commission_rate, which
+    # itself overrides the platform default. Null = fall through to
+    # whichever the next level up specifies.
+    commission_rate = models.DecimalField(
+        max_digits=5, decimal_places=2, null=True, blank=True,
+    )
+
     name = models.CharField(max_length=200)
 
     slug = models.SlugField(max_length=220, unique=True, blank=True)

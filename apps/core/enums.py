@@ -10,6 +10,8 @@ class UserRole(models.TextChoices):
     CUSTOMER = "CUSTOMER", "Customer"
     ADMIN = "ADMIN", "Administrator"
     STAFF = "STAFF", "Staff"
+    SELLER = "SELLER", "Seller"
+    AFFILIATE = "AFFILIATE", "Affiliate"
 
 
 class PaymentStatus(models.TextChoices):
@@ -29,6 +31,22 @@ class OrderStatus(models.TextChoices):
 class DeliveryMethod(models.TextChoices):
     SHIPPING = "shipping", "Shipping"
     LOCAL_DELIVERY = "local_delivery", "Local Delivery"
+
+
+class FulfillmentStatus(models.TextChoices):
+    """
+    Per-OrderItem fulfillment state, owned by whichever seller sold that
+    line item - deliberately separate from Order.status (which tracks the
+    customer's payment/checkout state as a whole). One Order can have
+    items from several sellers, each progressing independently: Seller A
+    might ship their item while Seller B is still preparing theirs.
+    """
+
+    PENDING = "pending", "Pending"
+    PROCESSING = "processing", "Processing"
+    SHIPPED = "shipped", "Shipped"
+    DELIVERED = "delivered", "Delivered"
+    CANCELLED = "cancelled", "Cancelled"
 
 
 class DeliveryStatus(models.TextChoices):

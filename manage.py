@@ -20,3 +20,5 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+# what other aspect of the website do you think my partner could work on apart of this md roadmap, or if this section can be split in to two for fast development..

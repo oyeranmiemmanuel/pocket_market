@@ -72,12 +72,13 @@ and admin-only-protected.
 
 **Contact form** - `ContactMessage` model + view, untouched.
 
-## Not started
+## Not started (as of the Phase 3 seller-system snapshot)
 
-`orders` (real multi-item order + line items - the actual bridge between
-`cart` and a real checkout), `payments` (as its own app, vs. Paystack
-calls embedded directly in monolith views), `delivery`, `notifications`,
-`dashboard` (as its own app), `analytics`, `wishlist`, `api`.
+At this point `orders`, `payments`, and `delivery` had already been built
+(see "Checkout / Orders / Payments / Inventory / Shipping - now built"
+above) - `dashboard` (as its own app), `analytics`, `wishlist`, `api`
+were the remaining gaps. See "Not started" further below for what's still
+open after Phase 4.
 
 ## The honest gap now
 
@@ -92,3 +93,35 @@ notifications when a delivery stage changes (that's
 beyond `is_staff`/`is_superuser` (`10_AUTHORIZATION.md`, still open);
 `clothing`/`branding`/`social` pages are still static (not tied to real
 catalog browsing/filtering the way `/shop/` now is).
+
+## Marketplace build - Phase 4 (multi-seller product/order architecture)
+
+Per the marketplace/affiliate implementation spec's phased plan (Phase 3
+was the seller application/approval system, already done - see above).
+
+**Done** - `OrderItem` now carries `seller` (nullable FK, snapshotted at
+checkout from `product.seller`), a frozen `platform_commission_rate`
+snapshot, and its own `fulfillment_status` independent of `Order.status`.
+One `Order` can span several sellers; each `OrderItem` correctly retains
+whichever seller actually sold it (verified live with a cart containing
+products from two different sellers plus a platform-owned product - see
+`orders.tests.MultiSellerCheckoutTests`). Approved sellers now have real
+product CRUD (`/sellers/products/`) scoped to their own products only,
+and an order view (`/sellers/orders/`) scoped to their own `OrderItem`s
+only, with fulfillment status they can update themselves - all with
+object-level ownership checks (404, not a hidden link, for someone
+else's product or order item), and fulfillment updates rejected
+server-side for unpaid orders regardless of what the form submits. The
+seller dashboard now shows real product/order/fulfillment counts.
+
+**Not done yet (later phases)** - affiliate system (`AffiliateProfile`,
+links, click tracking, attribution), commission calculations as their own
+service layer, the internal financial ledger, seller/affiliate payouts,
+and therefore no real seller earnings/pending-payout/available-balance
+numbers yet (dashboard says so explicitly rather than showing fabricated
+figures).
+
+## Not started
+
+Affiliate system, referral tracking, commission ledger, seller/affiliate
+payouts, `notifications`, `analytics`, `wishlist`, `api`.

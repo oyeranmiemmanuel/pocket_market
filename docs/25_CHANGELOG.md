@@ -463,3 +463,61 @@ undetected bugs:
   work (not just `check`) - home, cart, register, and admin routes all
   respond correctly.
 - See `03_DATABASE.md` for current setup steps and the app/model map.
+
+## Phase 4 - multi-seller product/order architecture
+
+Implements the "PHASE 4: Implement multi-seller product/order
+architecture" step of the marketplace/affiliate implementation spec.
+Builds on the Phase 3 seller application/approval system already in
+place - does not touch it.
+
+- `apps.core.enums` - added `FulfillmentStatus` (pending/processing/
+  shipped/delivered/cancelled). Deliberately separate from
+  `orders.OrderStatus`, which tracks the customer-facing payment/checkout
+  state of the whole `Order` - `FulfillmentStatus` tracks one seller's
+  progress on one `OrderItem`, since a single order can span several
+  sellers who fulfill independently.
+- `orders.OrderItem` - added three fields (migration
+  `0003_orderitem_seller_orderitem_platform_commission_rate_and_more`):
+  - `seller` (nullable FK to `sellers.SellerProfile`) - ownership lives on
+    the line item, not the `Order`, so one customer order can correctly
+    contain products from multiple sellers plus platform-owned products.
+  - `platform_commission_rate` - a frozen snapshot of
+    `sellers.services.resolve_commission_rate(product)` taken at checkout,
+    following the same snapshot pattern already used for
+    `product_name`/`unit_price` so a later change to a seller's or
+    product's rate never rewrites a past order's numbers.
+  - `fulfillment_status` - defaults to `pending`; each seller advances
+    only their own items.
+  - Migration adds all three as nullable/defaulted, so it's safe against
+    the existing (possibly non-empty) table - no backfill needed since
+    every prior `OrderItem` was created before the marketplace existed.
+- `orders.services.checkout.create_order_from_cart` - now populates
+  `seller`/`platform_commission_rate` on each `OrderItem` from
+  `item.product.seller` / `resolve_commission_rate(item.product)`.
+- `apps.sellers` - added seller-facing CRUD for their own products
+  (`SellerProductForm`, `product_list_view`/`product_create_view`/
+  `product_edit_view`/`product_delete_view`) and order visibility
+  (`order_item_list_view`, `update_fulfillment_status_view`), all behind
+  `@approved_seller_required`. Ownership is enforced with
+  `get_object_or_404(Product, pk=pk, seller=profile)` /
+  `get_object_or_404(OrderItem, pk=item_id, seller=profile)` - a 404 for
+  another seller's object, not just a hidden link - and fulfillment
+  updates are rejected server-side if `order.is_paid` is false, regardless
+  of what the form posts.
+- Seller dashboard now shows real counts (products, orders, items sold,
+  items awaiting fulfillment) computed directly from `OrderItem`. Earnings/
+  pending payout/available balance are intentionally left as "later
+  phase" text - those require the financial ledger (Phase 8), not yet
+  built.
+- Added automated tests: `orders.tests.MultiSellerCheckoutTests` (seller
+  ownership + commission snapshot split correctly across a cart with
+  multiple sellers and a platform-owned product; later rate changes don't
+  rewrite past orders) and `sellers.tests` (`SellerProductManagementTests`,
+  `UnapprovedSellerAccessTests`, `SellerOrderManagementTests` - a seller
+  can only manage/view their own products and order items, a 404 not a
+  silent redirect for someone else's object, pending/unregistered sellers
+  are redirected away).
+- Not done in this phase (later phases per the spec): affiliate system,
+  referral tracking, commission ledger, payouts, seller/affiliate
+  dashboards beyond the counts above.

@@ -1,0 +1,49 @@
+{% extends 'core/base.html' %}
+{% block title %}Affiliate Dashboard | Pocket Market{% endblock %}
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-12">
+    <div class="flex items-center justify-between mb-8">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-800">Affiliate Dashboard</h1>
+            <p class="text-gray-500">Code: <span class="font-mono font-semibold">{{ profile.affiliate_code }}</span></p>
+        </div>
+        <div class="flex gap-4">
+            <a href="{% url 'affiliates:my_links' %}" class="text-indigo-600 font-semibold text-sm hover:underline">My Links</a>
+            <a href="{% url 'affiliates:bank_details' %}" class="text-indigo-600 font-semibold text-sm hover:underline">Bank Details</a>
+        </div>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <p class="p-3 rounded-lg bg-green-50 text-green-700 text-sm mb-4">{{ message }}</p>
+        {% endfor %}
+    {% endif %}
+
+    <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-8">
+        <div class="bg-white rounded-xl shadow p-5">
+            <p class="text-sm text-gray-500">Active Links</p>
+            <p class="text-2xl font-bold text-gray-800">{{ total_links }}</p>
+        </div>
+        <div class="bg-white rounded-xl shadow p-5">
+            <p class="text-sm text-gray-500">Total Clicks</p>
+            <p class="text-2xl font-bold text-gray-800">{{ profile.total_clicks }}</p>
+        </div>
+        <div class="bg-white rounded-xl shadow p-5">
+            <p class="text-sm text-gray-500">Conversions</p>
+            <p class="text-2xl font-bold text-gray-800">{{ profile.total_conversions }}</p>
+        </div>
+        <div class="bg-white rounded-xl shadow p-5">
+            <p class="text-sm text-gray-500">Commission Rate</p>
+            <p class="text-2xl font-bold text-gray-800">
+                {% if profile.commission_rate %}{{ profile.commission_rate }}%{% else %}Platform default{% endif %}
+            </p>
+        </div>
+        <div class="bg-white rounded-xl shadow p-5">
+            <p class="text-sm text-gray-500">Status</p>
+            <p class="text-2xl font-bold text-green-600">{{ profile.get_status_display }}</p>
+        </div>
+    </div>
+
+    <p class="text-sm text-gray-400">Earnings and payouts require commission calculation and the financial ledger, which are later phases.</p>
+</div>
+{% endblock %}

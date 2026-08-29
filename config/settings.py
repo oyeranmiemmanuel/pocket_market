@@ -47,6 +47,8 @@ INSTALLED_APPS = [
     "apps.orders.apps.OrdersConfig",
     "apps.payments.apps.PaymentsConfig",
     "apps.delivery.apps.DeliveryConfig",
+    "apps.sellers.apps.SellersConfig",
+    "apps.affiliates.apps.AffiliatesConfig",
 ]
 
 LOGIN_URL = "custom_login"
@@ -59,9 +61,12 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "apps.affiliates.middleware.AffiliateTrackingMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
+
+
 
 ROOT_URLCONF = "config.urls"
 
@@ -165,4 +170,13 @@ PAYSTACK_PUBLIC_KEY = os.environ.get("PAYSTACK_PUBLIC_KEY")
 PAYSTACK_WEBHOOK_URL = os.environ.get(
     "PAYSTACK_WEBHOOK_URL",
     "https://toptech.pythonanywhere.com/webhook/paystack/",
+)
+
+
+
+# Phase 6 - referral tracking. How long a ?ref=<code> click stays
+# attributed to a visitor (spec section 12: "configurable through
+# settings rather than hard-coded throughout the application").
+AFFILIATE_ATTRIBUTION_WINDOW_DAYS = int(
+    os.environ.get("AFFILIATE_ATTRIBUTION_WINDOW_DAYS", "30")
 )

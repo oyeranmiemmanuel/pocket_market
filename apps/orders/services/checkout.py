@@ -14,6 +14,7 @@ from apps.core.constants import LOCAL_DELIVERY_FEE, SHIPPING_FEE
 from apps.core.enums import DeliveryMethod
 from apps.core.exceptions import ValidationFailedError
 from apps.core.utils import generate_reference
+from apps.sellers.services import resolve_commission_rate
 
 from ..models import Order, OrderItem, ShippingAddress
 
@@ -73,13 +74,21 @@ def create_order_from_cart(*, user, cart, email, full_name, phone, delivery_meth
         total=total,
     )
 
-    for item in cart.items.select_related("product"):
+    for item in cart.items.select_related("product", "product__seller"):
+        # Snapshot seller ownership + commission rate at the moment of
+        # purchase (per docs/28_DECISIONS.md's existing snapshot pattern
+        # for product_name/unit_price) - one Order can span multiple
+        # sellers, so ownership must live on the line item, and freezing
+        # the rate here means a later change to the seller's/product's
+        # commission never rewrites a past order's numbers.
         OrderItem.objects.create(
             order=order,
             product=item.product,
             product_name=item.product.name,
             unit_price=item.product.price,
             quantity=item.quantity,
+            seller=item.product.seller,
+            platform_commission_rate=resolve_commission_rate(item.product),
         )
 
     ShippingAddress.objects.create(order=order, **shipping_data)

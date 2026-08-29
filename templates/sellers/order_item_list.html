@@ -1,0 +1,88 @@
+{% extends 'core/base.html' %}
+{% block title %}My Orders | Top Tech{% endblock %}
+{% block content %}
+<div class="max-w-5xl mx-auto px-4 py-12">
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-800">My Orders</h1>
+        <p class="text-gray-500">Only items from your store are shown — never the rest of the customer's order.</p>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <p class="p-3 rounded-lg bg-green-50 text-green-700 text-sm mb-4">{{ message }}</p>
+        {% endfor %}
+    {% endif %}
+
+    <div class="flex gap-2 mb-4 text-sm">
+        <a href="{% url 'sellers:order_item_list' %}"
+           class="px-3 py-1 rounded-full {% if not status_filter %}bg-indigo-600 text-white{% else %}bg-white text-gray-600{% endif %}">All</a>
+        {% for value, label in status_choices %}
+        <a href="?status={{ value }}"
+           class="px-3 py-1 rounded-full {% if status_filter == value %}bg-indigo-600 text-white{% else %}bg-white text-gray-600{% endif %}">{{ label }}</a>
+        {% endfor %}
+    </div>
+
+    <div class="bg-white rounded-xl shadow overflow-hidden">
+        {% if page_obj.object_list %}
+        <table class="w-full text-sm text-left">
+            <thead class="bg-gray-50 text-gray-500 uppercase text-xs">
+                <tr>
+                    <th class="px-5 py-3">Order Ref</th>
+                    <th class="px-5 py-3">Product</th>
+                    <th class="px-5 py-3">Qty</th>
+                    <th class="px-5 py-3">Subtotal</th>
+                    <th class="px-5 py-3">Order Status</th>
+                    <th class="px-5 py-3">Fulfillment</th>
+                    <th class="px-5 py-3">Date</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+                {% for item in page_obj.object_list %}
+                <tr>
+                    <td class="px-5 py-3 font-medium text-gray-800">{{ item.order.reference }}</td>
+                    <td class="px-5 py-3">{{ item.product_name }}</td>
+                    <td class="px-5 py-3">{{ item.quantity }}</td>
+                    <td class="px-5 py-3">₦{{ item.subtotal }}</td>
+                    <td class="px-5 py-3">
+                        <span class="px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-600">{{ item.order.get_status_display }}</span>
+                    </td>
+                    <td class="px-5 py-3">
+                        {% if item.order.is_paid %}
+                        <form method="post" action="{% url 'sellers:update_fulfillment_status' item.pk %}" class="flex items-center gap-2">
+                            {% csrf_token %}
+                            <select name="fulfillment_status" class="border border-gray-300 rounded px-2 py-1 text-xs">
+                                {% for value, label in status_choices %}
+                                    <option value="{{ value }}" {% if item.fulfillment_status == value %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                            <button type="submit" class="text-indigo-600 text-xs font-semibold hover:underline">Save</button>
+                        </form>
+                        {% else %}
+                        <span class="px-2 py-1 rounded-full text-xs bg-yellow-50 text-yellow-700">Awaiting payment</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-5 py-3 text-gray-500">{{ item.created_at|date:"d M Y" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="p-12 text-center text-gray-400">
+            No orders yet for your products.
+        </div>
+        {% endif %}
+    </div>
+
+    {% if page_obj.paginator.num_pages > 1 %}
+    <div class="flex justify-center gap-2 mt-6 text-sm">
+        {% if page_obj.has_previous %}
+            <a href="?page={{ page_obj.previous_page_number }}" class="px-3 py-1 rounded bg-white shadow">Prev</a>
+        {% endif %}
+        <span class="px-3 py-1 text-gray-500">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+        {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}" class="px-3 py-1 rounded bg-white shadow">Next</a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

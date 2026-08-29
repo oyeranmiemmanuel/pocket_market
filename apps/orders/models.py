@@ -3,7 +3,7 @@ from django.core.validators import MinValueValidator
 from django.db import models
 
 from apps.catalog.models import Product
-from apps.core.enums import DeliveryMethod
+from apps.core.enums import DeliveryMethod, FulfillmentStatus
 from apps.core.models import BaseModel
 
 
@@ -85,11 +85,44 @@ class OrderItem(BaseModel):
         related_name="order_items",
     )
 
+    # Snapshotted at checkout (see apps.orders.services.checkout) from
+    # product.seller, per docs - one Order can contain items from several
+    # sellers, so ownership lives on the line item, not the Order. Kept
+    # even if the product is later reassigned/deleted, so historical
+    # orders always show who actually sold this line item.
+    seller = models.ForeignKey(
+        "sellers.SellerProfile",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="order_items",
+        help_text="Null = this was a platform-owned product (no seller).",
+    )
+
     product_name = models.CharField(max_length=200)
 
     unit_price = models.DecimalField(max_digits=10, decimal_places=2)
 
     quantity = models.PositiveIntegerField(validators=[MinValueValidator(1)])
+
+    # Snapshot of apps.sellers.services.resolve_commission_rate(product) at
+    # checkout time - the percentage the PLATFORM keeps from this line
+    # item. Frozen here so a later change to the seller's or product's
+    # commission rate never rewrites the financial history of past
+    # orders. This is a snapshot for display only; the actual payable
+    # ledger (gross/commission/refund/net per line item) is a later
+    # phase - see docs/28_DECISIONS.md.
+    platform_commission_rate = models.DecimalField(
+        max_digits=5, decimal_places=2, null=True, blank=True,
+    )
+
+    # Independent of Order.status (payment/checkout state). Each seller
+    # advances only the items that belong to them.
+    fulfillment_status = models.CharField(
+        max_length=20,
+        choices=FulfillmentStatus.choices,
+        default=FulfillmentStatus.PENDING,
+    )
 
     class Meta:
         ordering = ["id"]
@@ -100,6 +133,19 @@ class OrderItem(BaseModel):
     @property
     def subtotal(self):
         return self.unit_price * self.quantity
+
+    @property
+    def estimated_seller_earning(self):
+        """
+        Informational only (not a ledger entry) - what this line item
+        would net the seller based on the snapshotted commission rate.
+        Platform-owned items (no seller) never earn anything here.
+        """
+        if self.seller_id is None or self.platform_commission_rate is None:
+            return None
+        return (self.subtotal * (100 - self.platform_commission_rate) / 100).quantize(
+            self.unit_price
+        )
 
 
 class ShippingAddress(BaseModel):

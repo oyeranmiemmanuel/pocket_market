@@ -1,0 +1,20 @@
+{% extends 'core/base.html' %}
+{% block title %}Delete Product | Top Tech{% endblock %}
+{% block content %}
+<div class="max-w-md mx-auto px-4 py-12">
+    <div class="bg-white rounded-xl shadow p-6">
+        <h1 class="text-xl font-bold text-gray-800 mb-2">Delete "{{ product.name }}"?</h1>
+        <p class="text-gray-500 text-sm mb-6">
+            This removes it from your store and public listings. Existing orders that already
+            include this product keep their own record of it and are not affected.
+        </p>
+        <form method="post" class="flex gap-3">
+            {% csrf_token %}
+            <button type="submit" class="bg-red-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-700">
+                Yes, delete it
+            </button>
+            <a href="{% url 'sellers:product_list' %}" class="px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-100">Cancel</a>
+        </form>
+    </div>
+</div>
+{% endblock %}

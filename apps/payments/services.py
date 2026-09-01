@@ -13,7 +13,7 @@ import requests
 from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
-
+from apps.ledger.services import process_order_financials
 from apps.cart.services import get_or_create_cart
 from apps.core.exceptions import ValidationFailedError
 from apps.core.utils import generate_reference
@@ -94,6 +94,17 @@ def _finalize_successful_payment(payment: Payment):
         if item.product is not None:
             item.product.stock = max(0, item.product.stock - item.quantity)
             item.product.save(update_fields=["stock"])
+
+    # Phase 7/8 - commission calculation + financial ledger. Creates the
+    # AffiliateCommission, SellerEarning, and LedgerEntry rows for every
+    # eligible line item in one atomic step. No-ops cleanly per item
+    # where there's no seller/no eligible affiliate - see
+    # apps.ledger.services.process_order_financials's docstring. Runs
+    # inside this same atomic block, and is itself idempotent, so calling
+    # _finalize_successful_payment twice (callback + webhook both racing
+    # to verify the same reference) never double-credits anyone or
+    # double-writes the ledger (spec section 39).
+    process_order_financials(order)
 
     # Clear whichever cart this order's user currently has, if any.
     # hard_delete() - a soft-delete here would leave the items visible

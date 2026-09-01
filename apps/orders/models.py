@@ -59,6 +59,24 @@ class Order(BaseModel):
     shipping_fee = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     total = models.DecimalField(max_digits=12, decimal_places=2)
 
+    # Phase 7 - affiliate attribution, snapshotted at checkout time from
+    # apps.affiliates.services.get_attributed_affiliate(request) (the
+    # "last valid affiliate click" cookie - spec section 27). Snapshotting
+    # here, rather than resolving it fresh from the cookie later, means a
+    # later click/cookie expiry/affiliate suspension never rewrites which
+    # affiliate a *past* order was attributed to. `affiliate_code` is kept
+    # alongside the FK (not derived from it) so the code is still visible
+    # even if the affiliate profile is later deleted (SET_NULL).
+    affiliate = models.ForeignKey(
+        "affiliates.AffiliateProfile",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="attributed_orders",
+        help_text="Affiliate credited with referring this order, if any.",
+    )
+    affiliate_code = models.CharField(max_length=20, blank=True)
+
     class Meta:
         ordering = ["-created_at"]
 

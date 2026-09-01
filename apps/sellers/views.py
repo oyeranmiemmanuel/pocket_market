@@ -59,8 +59,43 @@ def dashboard_view(request):
         "pending_fulfillment_count": order_items.filter(
             fulfillment_status=FulfillmentStatus.PENDING
         ).count(),
+        # Phase 8 - real numbers from the financial ledger, not estimates.
+        "total_sales": profile.total_sales,
+        "total_earnings": profile.total_earnings,
+        "pending_payout": profile.pending_earnings,
+        "available_balance": profile.available_earnings,
+        "paid_out": profile.paid_earnings,
+        "refunded_amount": profile.refunded_amount,
     }
     return render(request, "sellers/dashboard.html", context)
+
+@approved_seller_required
+def earnings_view(request):
+    """
+    Read-only list of this seller's own earnings - never another
+    seller's (same object-level-ownership pattern as order_item_list_view
+    / apps.affiliates.views.my_conversions_view).
+    """
+    profile = request.user.seller_profile
+
+    earnings = (
+        profile.earnings.filter(reversal_of__isnull=True)
+        .select_related("order", "order_item")
+        .order_by("-created_at")
+    )
+
+    status_filter = request.GET.get("status")
+    if status_filter:
+        earnings = earnings.filter(status=status_filter)
+
+    paginator = Paginator(earnings, 20)
+    page_obj = paginator.get_page(request.GET.get("page"))
+
+    return render(request, "sellers/earnings.html", {
+        "profile": profile,
+        "page_obj": page_obj,
+        "status_filter": status_filter,
+    })
 
 
 # ---------------------------------------------------------------------------
@@ -76,7 +111,7 @@ def dashboard_view(request):
 
 @approved_seller_required
 def product_list_view(request):
-    profile = request.user.seller_profile
+    profile= request.user.seller_profile
     products = Product.objects.filter(seller=profile).select_related("category").order_by("-created_at")
 
     paginator = Paginator(products, 20)

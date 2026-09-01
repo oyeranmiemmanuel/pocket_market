@@ -62,6 +62,20 @@ class Product(BaseModel):
         max_digits=5, decimal_places=2, null=True, blank=True,
     )
 
+    # Phase 7 - affiliate commission hierarchy (spec section 16):
+    # Product.affiliate_commission_rate -> Seller.affiliate_commission_rate
+    # -> PLATFORM_AFFILIATE_COMMISSION_RATE_DEFAULT. Deliberately a
+    # separate field from `commission_rate` above - that one is the
+    # platform's own cut from the seller, this one is what an affiliate
+    # earns for referring a sale of *this* product. See
+    # apps.affiliates.services.resolve_affiliate_commission_rate.
+    affiliate_commission_rate = models.DecimalField(
+        max_digits=5, decimal_places=2, null=True, blank=True,
+        help_text="Affiliate commission percentage for this specific "
+                   "product. Leave blank to fall through to the seller's "
+                   "rate, then the platform default.",
+    )
+
     name = models.CharField(max_length=200)
 
     slug = models.SlugField(max_length=220, unique=True, blank=True)

@@ -45,18 +45,33 @@ def delivery_fee_for(method: str) -> Decimal:
 
 
 @transaction.atomic
-def create_order_from_cart(*, user, cart, email, full_name, phone, delivery_method, shipping_data):
+def create_order_from_cart(*, user, cart, email, full_name, phone, delivery_method, shipping_data, affiliate=None):
     """
     Snapshot the cart into a real Order + OrderItems + ShippingAddress.
 
     Raises OutOfStockError if anything in the cart no longer fits
     available stock (checked again here, not just at form-render time -
     stock can change between viewing the form and submitting it).
+
+    `affiliate` (Phase 7) is whichever AffiliateProfile the attribution
+    cookie currently points to - resolved by the caller (the checkout
+    view has the request; this service function deliberately doesn't take
+    a request, per the existing separation between views and services).
+    Snapshotted onto the order now, once, rather than re-resolved from the
+    cookie later at payment time, so a cookie that later expires or an
+    affiliate who's later suspended never changes which order they were
+    credited for. Self-referral (spec section 43) is guarded here too,
+    not only at click-tracking time - guest browsing under a referral link
+    and then logging into/creating *that same* affiliate's own account
+    before checkout out must never earn them a commission on themselves.
     """
     if not cart.items.exists():
         raise ValidationFailedError("Cart is empty.")
 
     validate_cart_stock(cart)
+
+    if affiliate is not None and user is not None and affiliate.user_id == user.id:
+        affiliate = None
 
     shipping_fee = delivery_fee_for(delivery_method)
     subtotal = sum((item.subtotal for item in cart.items.all()), Decimal("0"))
@@ -72,6 +87,8 @@ def create_order_from_cart(*, user, cart, email, full_name, phone, delivery_meth
         subtotal=subtotal,
         shipping_fee=shipping_fee,
         total=total,
+        affiliate=affiliate,
+        affiliate_code=affiliate.affiliate_code if affiliate else "",
     )
 
     for item in cart.items.select_related("product", "product__seller"):

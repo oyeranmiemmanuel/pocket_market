@@ -9,6 +9,7 @@
         </div>
         <div class="flex gap-4">
             <a href="{% url 'affiliates:my_links' %}" class="text-indigo-600 font-semibold text-sm hover:underline">My Links</a>
+            <a href="{% url 'affiliates:my_conversions' %}" class="text-indigo-600 font-semibold text-sm hover:underline">Conversions</a>
             <a href="{% url 'affiliates:bank_details' %}" class="text-indigo-600 font-semibold text-sm hover:underline">Bank Details</a>
         </div>
     </div>
@@ -31,6 +32,7 @@
         <div class="bg-white rounded-xl shadow p-5">
             <p class="text-sm text-gray-500">Conversions</p>
             <p class="text-2xl font-bold text-gray-800">{{ profile.total_conversions }}</p>
+            <p class="text-xs text-gray-400">{{ profile.conversion_rate }}% conversion rate</p>
         </div>
         <div class="bg-white rounded-xl shadow p-5">
             <p class="text-sm text-gray-500">Commission Rate</p>
@@ -44,6 +46,26 @@
         </div>
     </div>
 
-    <p class="text-sm text-gray-400">Earnings and payouts require commission calculation and the financial ledger, which are later phases.</p>
+    <h2 class="text-lg font-semibold text-gray-800 mb-4">Earnings</h2>
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+        <div class="bg-white rounded-xl shadow p-5">
+            <p class="text-sm text-gray-500">Total Earnings</p>
+            <p class="text-2xl font-bold text-gray-800">₦{{ profile.total_earnings }}</p>
+        </div>
+        <div class="bg-white rounded-xl shadow p-5">
+            <p class="text-sm text-gray-500">Pending</p>
+            <p class="text-2xl font-bold text-amber-600">₦{{ profile.pending_earnings }}</p>
+        </div>
+        <div class="bg-white rounded-xl shadow p-5">
+            <p class="text-sm text-gray-500">Available Balance</p>
+            <p class="text-2xl font-bold text-green-600">₦{{ profile.available_earnings }}</p>
+        </div>
+        <div class="bg-white rounded-xl shadow p-5">
+            <p class="text-sm text-gray-500">Paid Out</p>
+            <p class="text-2xl font-bold text-gray-800">₦{{ profile.paid_earnings }}</p>
+        </div>
+    </div>
+
+    <p class="text-sm text-gray-400">Pending commissions clear to "Available" once confirmed by the platform. Requesting a payout from an available balance is a later phase.</p>
 </div>
 {% endblock %}

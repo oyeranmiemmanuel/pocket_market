@@ -3,6 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
+from apps.affiliates.services import get_attributed_affiliate
 from apps.cart.services import get_or_create_cart
 from apps.core.exceptions import ValidationFailedError
 
@@ -40,6 +41,12 @@ def checkout_view(request):
                     phone=form.cleaned_data["phone"],
                     delivery_method=form.cleaned_data["delivery_method"],
                     shipping_data=form.shipping_data(),
+                    # Phase 7 - whichever affiliate's ?ref= link is
+                    # currently attributed to this visitor (spec section
+                    # 28: must survive guest -> authenticated checkout,
+                    # which it does here since the cookie isn't tied to
+                    # login state at all).
+                    affiliate=get_attributed_affiliate(request),
                 )
             except ValidationFailedError as e:
                 messages.error(request, str(e))

@@ -14,6 +14,9 @@
             <a href="{% url 'sellers:order_item_list' %}" class="text-indigo-600 font-semibold text-sm hover:underline">
                 My Orders
             </a>
+            <a href="{% url 'sellers:earnings' %}" class="text-indigo-600 font-semibold text-sm hover:underline">
+                Earnings
+            </a>
             <a href="{% url 'sellers:bank_details' %}" class="text-indigo-600 font-semibold text-sm hover:underline">
                 Bank Details
             </a>
@@ -55,6 +58,34 @@
         </div>
     </div>
 
-    <p class="text-sm text-gray-400">Earnings, pending payout, and available balance require the financial ledger, which is a later phase.</p>
+    <h2 class="text-lg font-semibold text-gray-800 mb-4">Earnings</h2>
+    <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-4">
+        <div class="bg-white rounded-xl shadow p-5">
+            <p class="text-sm text-gray-500">Total Sales</p>
+            <p class="text-2xl font-bold text-gray-800">₦{{ total_sales }}</p>
+        </div>
+        <div class="bg-white rounded-xl shadow p-5">
+            <p class="text-sm text-gray-500">Total Earnings</p>
+            <p class="text-2xl font-bold text-gray-800">₦{{ total_earnings }}</p>
+        </div>
+        <div class="bg-white rounded-xl shadow p-5">
+            <p class="text-sm text-gray-500">Pending Payout</p>
+            <p class="text-2xl font-bold text-amber-600">₦{{ pending_payout }}</p>
+        </div>
+        <div class="bg-white rounded-xl shadow p-5">
+            <p class="text-sm text-gray-500">Available Balance</p>
+            <p class="text-2xl font-bold text-green-600">₦{{ available_balance }}</p>
+        </div>
+        <div class="bg-white rounded-xl shadow p-5">
+            <p class="text-sm text-gray-500">Paid Out</p>
+            <p class="text-2xl font-bold text-gray-800">₦{{ paid_out }}</p>
+        </div>
+        <div class="bg-white rounded-xl shadow p-5">
+            <p class="text-sm text-gray-500">Refunded</p>
+            <p class="text-2xl font-bold text-red-600">₦{{ refunded_amount }}</p>
+        </div>
+    </div>
+
+    <p class="text-sm text-gray-400">Pending earnings clear to "Available" once confirmed by the platform. Requesting a payout from an available balance is a later phase.</p>
 </div>
 {% endblock %}

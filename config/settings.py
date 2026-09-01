@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     "apps.delivery.apps.DeliveryConfig",
     "apps.sellers.apps.SellersConfig",
     "apps.affiliates.apps.AffiliatesConfig",
+    "apps.ledger.apps.LedgerConfig",
 ]
 
 LOGIN_URL = "custom_login"

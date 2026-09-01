@@ -1,0 +1,73 @@
+{% extends 'core/base.html' %}
+{% block title %}My Conversions | Pocket Market{% endblock %}
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-12">
+    <div class="flex items-center justify-between mb-8">
+        <h1 class="text-3xl font-bold text-gray-800">My Conversions</h1>
+        <a href="{% url 'affiliates:dashboard' %}" class="text-indigo-600 font-semibold text-sm hover:underline">
+            Back to Dashboard
+        </a>
+    </div>
+
+    <div class="flex gap-2 mb-6 text-sm">
+        <a href="{% url 'affiliates:my_conversions' %}" class="px-3 py-1.5 rounded-full {% if not status_filter %}bg-indigo-600 text-white{% else %}bg-white text-gray-600 border border-gray-200{% endif %}">All</a>
+        <a href="?status=pending" class="px-3 py-1.5 rounded-full {% if status_filter == 'pending' %}bg-indigo-600 text-white{% else %}bg-white text-gray-600 border border-gray-200{% endif %}">Pending</a>
+        <a href="?status=confirmed" class="px-3 py-1.5 rounded-full {% if status_filter == 'confirmed' %}bg-indigo-600 text-white{% else %}bg-white text-gray-600 border border-gray-200{% endif %}">Confirmed</a>
+        <a href="?status=available" class="px-3 py-1.5 rounded-full {% if status_filter == 'available' %}bg-indigo-600 text-white{% else %}bg-white text-gray-600 border border-gray-200{% endif %}">Available</a>
+        <a href="?status=paid" class="px-3 py-1.5 rounded-full {% if status_filter == 'paid' %}bg-indigo-600 text-white{% else %}bg-white text-gray-600 border border-gray-200{% endif %}">Paid</a>
+    </div>
+
+    {% if page_obj.object_list %}
+        <div class="bg-white rounded-xl shadow overflow-hidden">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-50 text-gray-500 text-left">
+                    <tr>
+                        <th class="px-4 py-3">Order</th>
+                        <th class="px-4 py-3">Product</th>
+                        <th class="px-4 py-3">Order Amount</th>
+                        <th class="px-4 py-3">Rate</th>
+                        <th class="px-4 py-3">Commission</th>
+                        <th class="px-4 py-3">Status</th>
+                        <th class="px-4 py-3">Date</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    {% for commission in page_obj.object_list %}
+                        <tr>
+                            <td class="px-4 py-3 font-mono text-xs">{{ commission.order.reference }}</td>
+                            <td class="px-4 py-3">{{ commission.order_item.product_name }}</td>
+                            <td class="px-4 py-3">₦{{ commission.order_amount }}</td>
+                            <td class="px-4 py-3">{{ commission.commission_rate }}%</td>
+                            <td class="px-4 py-3 font-semibold">₦{{ commission.commission_amount }}</td>
+                            <td class="px-4 py-3">
+                                <span class="px-2 py-1 rounded-full text-xs font-semibold
+                                    {% if commission.status == 'available' %}bg-green-100 text-green-700
+                                    {% elif commission.status == 'paid' %}bg-indigo-100 text-indigo-700
+                                    {% elif commission.status == 'cancelled' or commission.status == 'reversed' %}bg-red-100 text-red-700
+                                    {% else %}bg-amber-100 text-amber-700{% endif %}">
+                                    {{ commission.get_status_display }}
+                                </span>
+                            </td>
+                            <td class="px-4 py-3 text-gray-500">{{ commission.created_at|date:"M d, Y" }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if page_obj.has_other_pages %}
+            <div class="flex gap-2 mt-6 text-sm">
+                {% if page_obj.has_previous %}
+                    <a href="?page={{ page_obj.previous_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}" class="text-indigo-600 hover:underline">Previous</a>
+                {% endif %}
+                <span class="text-gray-400">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+                {% if page_obj.has_next %}
+                    <a href="?page={{ page_obj.next_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}" class="text-indigo-600 hover:underline">Next</a>
+                {% endif %}
+            </div>
+        {% endif %}
+    {% else %}
+        <p class="text-gray-500 text-sm">No conversions yet - once someone buys through one of your links, it'll show up here.</p>
+    {% endif %}
+</div>
+{% endblock %}

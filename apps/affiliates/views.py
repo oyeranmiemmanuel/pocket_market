@@ -1,5 +1,6 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404, redirect, render
 
 from apps.catalog.models import Product
@@ -43,11 +44,47 @@ def application_status_view(request):
     return render(request, "affiliates/application_status.html", {"profile": profile})
 
 
+@active_affiliate_required
 def dashboard_view(request):
     profile = request.user.affiliate_profile
     return render(request, "affiliates/dashboard.html", {
         "profile": profile,
         "total_links": profile.links.filter(is_active=True).count(),
+    })
+
+
+# ---------------------------------------------------------------------------
+# Conversions / commissions - phase 7.
+# ---------------------------------------------------------------------------
+
+@active_affiliate_required
+def my_conversions_view(request):
+    """
+    Read-only list of this affiliate's own commissions - never another
+    affiliate's (scoped by `profile`, same object-level-ownership pattern
+    as sellers.views.order_item_list_view). Customers' own order totals/
+    financial details are never exposed here, only what this affiliate
+    personally earned per conversion (spec section 29/30).
+    """
+    profile = request.user.affiliate_profile
+
+    commissions = (
+        profile.commissions.filter(reversal_of__isnull=True)
+        .select_related("order", "order_item")
+        .order_by("-created_at")
+    )
+
+    status_filter = request.GET.get("status")
+    if status_filter:
+        commissions = commissions.filter(status=status_filter)
+
+    paginator = Paginator(commissions, 20)
+    page_obj = paginator.get_page(request.GET.get("page"))
+
+    return render(request, "affiliates/conversions.html", {
+        "profile": profile,
+        "page_obj": page_obj,
+        "status_filter": status_filter,
     })
 
 

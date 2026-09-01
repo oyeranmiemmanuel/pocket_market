@@ -10,6 +10,9 @@ urlpatterns = [
     path("dashboard/", views.dashboard_view, name="dashboard"),
     path("bank-details/", views.bank_details_view, name="bank_details"),
 
+    # Phase 8 - earnings ledger
+    path("earnings/", views.earnings_view, name="earnings"),
+
     # Phase 4 - product management
     path("products/", views.product_list_view, name="product_list"),
     path("products/add/", views.product_create_view, name="product_add"),

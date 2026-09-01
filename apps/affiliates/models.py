@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.conf import settings
 from django.db import models
 from django.urls import reverse
@@ -80,8 +82,42 @@ class AffiliateProfile(BaseModel):
 
     @property
     def total_conversions(self):
-        """Always 0 until Phase 7 wires up commission/conversion tracking - computed honestly, not hard-coded."""
+        """Phase 7 - a click is flipped to converted=True by record_conversion_for_order() once it leads to a paid, attributed order."""
         return self.clicks.filter(converted=True).count()
+
+    @property
+    def conversion_rate(self):
+        clicks = self.total_clicks
+        if not clicks:
+            return Decimal("0")
+        return (Decimal(self.total_conversions) / Decimal(clicks) * 100).quantize(Decimal("0.01"))
+
+    def _commission_sum(self, *statuses):
+        return self.commissions.filter(status__in=statuses).aggregate(
+            total=models.Sum("commission_amount")
+        )["total"] or Decimal("0.00")
+
+    @property
+    def total_earnings(self):
+        """Everything ever credited to this affiliate, excluding cancelled/reversed commissions and the reversal rows themselves."""
+        return self._commission_sum(
+            CommissionStatus.PENDING, CommissionStatus.CONFIRMED,
+            CommissionStatus.AVAILABLE, CommissionStatus.PAID,
+        )
+
+    @property
+    def pending_earnings(self):
+        """Not yet cleared for payout - still within the refund/hold window."""
+        return self._commission_sum(CommissionStatus.PENDING, CommissionStatus.CONFIRMED)
+
+    @property
+    def available_earnings(self):
+        """Cleared and ready to be requested as a payout (Phase 9)."""
+        return self._commission_sum(CommissionStatus.AVAILABLE)
+
+    @property
+    def paid_earnings(self):
+        return self._commission_sum(CommissionStatus.PAID)
 
 
 class AffiliateLink(BaseModel):
@@ -193,3 +229,123 @@ class AffiliateClick(BaseModel):
 
     def __str__(self):
         return f"Click via {self.affiliate} on {self.product} at {self.created_at:%Y-%m-%d %H:%M}"
+
+
+class CommissionStatus(models.TextChoices):
+    """
+    Per spec section 15. A commission is never immediately payable - it
+    only becomes AVAILABLE after whatever refund/hold period the platform
+    decides on (manual, via admin, for now - no automatic timer yet), and
+    only PAID once an actual payout has gone out (Phase 9).
+    """
+
+    PENDING = "pending", "Pending"
+    CONFIRMED = "confirmed", "Confirmed"
+    AVAILABLE = "available", "Available"
+    PAID = "paid", "Paid"
+    CANCELLED = "cancelled", "Cancelled"
+    REVERSED = "reversed", "Reversed"
+
+
+class AffiliateCommission(BaseModel):
+    """
+    One row per (order_item, affiliate) - the conversion + commission
+    record described in spec sections 14/15 combined into a single model,
+    since every field of a "conversion" (order, affiliate, affiliate_link,
+    order amount) is naturally just context for its "commission" (amount,
+    status). Created once, at payment-success time, by
+    apps.affiliates.services.record_conversion_for_order - never in a
+    view, and never from client-supplied numbers (spec section 42).
+
+    Refunds are handled by leaving the original row alone and creating a
+    second row with `reversal_of` pointing back at it (spec section 25:
+    "create a reversal rather than silently deleting the original
+    commission") - so the ledger-adjacent history is always auditable.
+    The refund flow itself doesn't exist yet in this codebase (no refund
+    model/view - see docs/28_DECISIONS.md), so `reverse_commission()` in
+    services.py is here ready for whenever that lands.
+    """
+
+    affiliate = models.ForeignKey(
+        AffiliateProfile,
+        on_delete=models.PROTECT,
+        related_name="commissions",
+        help_text="PROTECT, not SET_NULL/CASCADE - a commission must "
+                   "never lose track of who it's owed to, even if we "
+                   "later add affiliate deletion.",
+    )
+
+    order = models.ForeignKey(
+        "orders.Order",
+        on_delete=models.PROTECT,
+        related_name="affiliate_commissions",
+    )
+
+    order_item = models.ForeignKey(
+        "orders.OrderItem",
+        on_delete=models.PROTECT,
+        related_name="affiliate_commissions",
+    )
+
+    affiliate_link = models.ForeignKey(
+        AffiliateLink,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="commissions",
+        help_text="The link this conversion is credited through, if the "
+                   "affiliate had generated one for this exact product. "
+                   "Null doesn't invalidate the commission - attribution "
+                   "is by affiliate code, not by a specific link.",
+    )
+
+    # Snapshots, frozen at creation time - a later change to the
+    # affiliate's/product's/seller's rate must never rewrite a past
+    # commission's numbers (same pattern as OrderItem.platform_commission_rate).
+    order_amount = models.DecimalField(
+        max_digits=12, decimal_places=2,
+        help_text="Gross line-item amount (OrderItem.subtotal) this commission was calculated from.",
+    )
+    commission_rate = models.DecimalField(max_digits=5, decimal_places=2)
+    commission_amount = models.DecimalField(max_digits=12, decimal_places=2)
+
+    status = models.CharField(
+        max_length=20,
+        choices=CommissionStatus.choices,
+        default=CommissionStatus.PENDING,
+    )
+
+    reversal_of = models.ForeignKey(
+        "self",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="reversals",
+        help_text="Set only on a reversal row - points back at the "
+                   "original commission it cancels out.",
+    )
+
+    notes = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        db_table = "affiliate_commissions"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["affiliate", "status"]),
+            models.Index(fields=["order", "status"]),
+        ]
+        constraints = [
+            # One *original* commission per order item - reversals are
+            # exempt (they intentionally reference the same order_item as
+            # the row they're cancelling), so this only guards against
+            # accidentally creating the original twice (e.g. a webhook
+            # firing twice - see spec section 39, idempotency).
+            models.UniqueConstraint(
+                fields=["order_item"],
+                condition=models.Q(reversal_of__isnull=True),
+                name="unique_original_commission_per_order_item",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.affiliate} earns {self.commission_amount} on {self.order_item} ({self.get_status_display()})"

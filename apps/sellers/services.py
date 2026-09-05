@@ -1,7 +1,10 @@
 """
 Seller application lifecycle + commission rate resolution.
 """
+from django.conf import settings
 
+from apps.core.enums import PayoutStatus
+from apps.core.utils import generate_reference
 from decimal import Decimal
 
 from django.db import transaction
@@ -11,8 +14,7 @@ from apps.core.constants import PLATFORM_COMMISSION_RATE_DEFAULT
 from apps.core.exceptions import ValidationFailedError
 from apps.core.utils import unique_slugify
 
-from .models import EarningStatus, SellerEarning, SellerProfile, SellerStatus
-
+from .models import EarningStatus, SellerEarning, SellerPayout, SellerProfile, SellerStatus
 def apply_for_seller(*, user, store_name, store_description, phone, business_email):
     """
     Create a pending seller application. One per user - raises if they
@@ -174,3 +176,160 @@ def reverse_seller_earning(*, earning, reason=""):
     earning.save(update_fields=["status", "updated_at"])
 
     return reversal
+
+# ---------------------------------------------------------------------------
+# Phase 9 - seller payouts (spec section 19).
+# ---------------------------------------------------------------------------
+
+@transaction.atomic
+def request_seller_payout(*, seller, amount):
+    """
+    A seller requests a payout of part or all of their withdrawable
+    balance. Validates:
+      - the seller has bank details on file (nothing to pay out to otherwise)
+      - amount is positive and meets the configurable minimum withdrawal
+      - amount does not exceed the seller's current withdrawable balance
+
+    Reserves whichever AVAILABLE, not-yet-reserved earnings (oldest
+    first) cover at least `amount`, linking them to the new SellerPayout
+    via SellerEarning.payout. Earnings stay AVAILABLE (not PAID) until
+    the payout actually completes - see mark_seller_payout_paid.
+
+    Because earnings can't be split, the amount actually reserved (and
+    therefore the payout's real `amount`) may be slightly more than what
+    was requested - reserved rows always cover >= the requested amount,
+    snapped to whole earning rows, so every payout stays traceable to an
+    exact, auditable set of SellerEarning rows.
+    """
+    if amount is None or amount <= 0:
+        raise ValidationFailedError("Enter a valid amount to withdraw.")
+
+    if not (seller.bank_name and seller.bank_account_number and seller.bank_account_name):
+        raise ValidationFailedError("Add your bank details before requesting a payout.")
+
+    minimum = Decimal(settings.MINIMUM_SELLER_WITHDRAWAL)
+    if amount < minimum:
+        raise ValidationFailedError(f"The minimum withdrawal amount is \u20a6{minimum}.")
+
+    withdrawable = seller.withdrawable_balance
+    if amount > withdrawable:
+        raise ValidationFailedError(
+            f"You can only withdraw up to your available balance of \u20a6{withdrawable}."
+        )
+
+    candidates = (
+        seller.earnings.select_for_update()
+        .filter(status=EarningStatus.AVAILABLE, payout__isnull=True)
+        .order_by("created_at")
+    )
+
+    reserved_ids = []
+    running_total = Decimal("0.00")
+    for earning in candidates:
+        if running_total >= amount:
+            break
+        reserved_ids.append(earning.pk)
+        running_total += earning.earning_amount
+
+    if running_total < amount:
+        # Balance moved between the check above and the row lock (e.g. a
+        # concurrent request racing this one) - fail safe rather than
+        # reserve short.
+        raise ValidationFailedError("Your available balance changed - please try again.")
+
+    payout = SellerPayout.objects.create(
+        seller=seller,
+        amount=running_total,
+        reference=generate_reference("SPO"),
+        bank_name=seller.bank_name,
+        bank_code=seller.bank_code,          # <-- new line
+        bank_account_number=seller.bank_account_number,
+        bank_account_name=seller.bank_account_name,
+        status=PayoutStatus.PENDING,
+    )
+
+    SellerEarning.objects.filter(pk__in=reserved_ids).update(payout=payout)
+
+    return payout
+
+
+def mark_seller_payout_processing(*, payout):
+    """PENDING -> PROCESSING - admin has kicked off the actual bank transfer."""
+    payout.status = PayoutStatus.PROCESSING
+    payout.save(update_fields=["status", "updated_at"])
+    return payout
+
+
+@transaction.atomic
+def mark_seller_payout_paid(*, payout):
+    """
+    -> PAID. The SellerEarning rows this payout reserved move from
+    AVAILABLE to PAID at the same moment, so a seller's earnings history
+    and payout history always agree about what's actually been settled.
+    """
+    payout.status = PayoutStatus.PAID
+    payout.processed_at = timezone.now()
+    payout.save(update_fields=["status", "processed_at", "updated_at"])
+
+    payout.earnings.filter(status=EarningStatus.AVAILABLE).update(status=EarningStatus.PAID)
+    return payout
+
+
+def mark_seller_payout_failed(*, payout, reason=""):
+    """
+    -> FAILED. Releases the reserved earnings back to the unreserved
+    AVAILABLE pool (spec section 19: "Do not immediately mark
+    withdrawals as paid unless the payout operation actually succeeds")
+    so the seller can request a payout again.
+    """
+    payout.status = PayoutStatus.FAILED
+    if reason:
+        payout.notes = reason
+    payout.save(update_fields=["status", "notes", "updated_at"])
+    payout.earnings.update(payout=None)
+    return payout
+
+
+def cancel_seller_payout(*, payout, reason=""):
+    """PENDING/PROCESSING -> CANCELLED. Same release behaviour as a failure."""
+    payout.status = PayoutStatus.CANCELLED
+    if reason:
+        payout.notes = reason
+    payout.save(update_fields=["status", "notes", "updated_at"])
+    payout.earnings.update(payout=None)
+    return payout
+
+@transaction.atomic
+def send_seller_payout(*, payout):
+    """
+    Phase 10 - triggers the real Paystack transfer for a PENDING payout.
+    Creates a transfer recipient from the payout's own snapshotted bank
+    details, then initiates the transfer using the payout's `reference`
+    as Paystack's idempotency reference. Moves the payout to PROCESSING
+    immediately; final settlement (PAID/FAILED) is driven only by the
+    transfer.success/transfer.failed webhook - never assumed here (spec
+    section 19: "Do not immediately mark withdrawals as paid unless the
+    payout operation actually succeeds").
+    """
+    from apps.payments.services import create_transfer_recipient, initiate_transfer
+
+    if payout.status != PayoutStatus.PENDING:
+        raise ValidationFailedError("Only pending payouts can be sent.")
+
+    recipient_code = create_transfer_recipient(
+        name=payout.bank_account_name,
+        account_number=payout.bank_account_number,
+        bank_code=payout.bank_code,
+    )
+
+    response = initiate_transfer(
+        recipient_code=recipient_code,
+        amount=payout.amount,
+        reference=payout.reference,
+        reason=f"Payout {payout.reference} to {payout.seller.store_name}",
+    )
+
+    payout.status = PayoutStatus.PROCESSING
+    payout.provider_reference = response.get("transfer_code", "")
+    payout.save(update_fields=["status", "provider_reference", "updated_at"])
+    return payout

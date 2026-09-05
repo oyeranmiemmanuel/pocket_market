@@ -1,5 +1,15 @@
 {% extends 'core/base.html' %}
 {% block title %}Affiliate Dashboard | Pocket Market{% endblock %}
+
+    {% block extra_css %}
+
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+    {% endblock %}
+
 {% block content %}
 <div class="max-w-4xl mx-auto px-4 py-12">
     <div class="flex items-center justify-between mb-8">
@@ -11,6 +21,7 @@
             <a href="{% url 'affiliates:my_links' %}" class="text-indigo-600 font-semibold text-sm hover:underline">My Links</a>
             <a href="{% url 'affiliates:my_conversions' %}" class="text-indigo-600 font-semibold text-sm hover:underline">Conversions</a>
             <a href="{% url 'affiliates:bank_details' %}" class="text-indigo-600 font-semibold text-sm hover:underline">Bank Details</a>
+            <a href="{% url 'affiliates:payouts' %}" class="text-indigo-600 font-semibold text-sm hover:underline">Payouts</a>
         </div>
     </div>
 
@@ -66,6 +77,18 @@
         </div>
     </div>
 
-    <p class="text-sm text-gray-400">Pending commissions clear to "Available" once confirmed by the platform. Requesting a payout from an available balance is a later phase.</p>
+    <div class="flex items-center justify-between bg-white rounded-xl shadow p-5 mb-4">
+        <div>
+            <p class="text-sm text-gray-500">Withdrawable Now</p>
+            <p class="text-2xl font-bold text-green-600">₦{{ profile.withdrawable_balance }}</p>
+            {% if profile.payouts_in_progress_total %}
+                <p class="text-xs text-gray-400">₦{{ profile.payouts_in_progress_total }} already requested and awaiting payout</p>
+            {% endif %}
+        </div>
+        <a href="{% url 'affiliates:payouts' %}" class="bg-indigo-600 text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-indigo-700">
+            Request Payout
+        </a>
+    </div>
+    <p class="text-sm text-gray-400">Pending commissions clear to "Available" once confirmed by the platform.</p>
 </div>
 {% endblock %}

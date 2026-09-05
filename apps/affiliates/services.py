@@ -6,7 +6,9 @@ recording once a sale can be attributed to a click.
 
 from datetime import timedelta
 from decimal import Decimal
+from django.conf import settings
 
+from apps.core.enums import PayoutStatus
 from django.conf import settings
 from django.core import signing
 from django.db import transaction
@@ -26,11 +28,11 @@ from .models import (
     AffiliateClick,
     AffiliateCommission,
     AffiliateLink,
+    AffiliatePayout,
     AffiliateProfile,
     AffiliateStatus,
     CommissionStatus,
 )
-
 def _generate_unique_affiliate_code() -> str:
     """AFF-XXXXXXXXXX, regenerated on the rare collision."""
     for _ in range(5):
@@ -469,3 +471,120 @@ def reverse_commission(*, commission, reason=""):
     commission.save(update_fields=["status", "updated_at"])
 
     return reversal
+
+
+# ---------------------------------------------------------------------------
+# Phase 9 - affiliate payouts (spec section 20). Mirrors
+# apps.sellers.services's seller-payout functions exactly.
+# ---------------------------------------------------------------------------
+
+@transaction.atomic
+def request_affiliate_payout(*, affiliate, amount):
+    """See apps.sellers.services.request_seller_payout - identical logic, affiliate side."""
+    if amount is None or amount <= 0:
+        raise ValidationFailedError("Enter a valid amount to withdraw.")
+
+    if not (affiliate.bank_name and affiliate.bank_account_number and affiliate.bank_account_name):
+        raise ValidationFailedError("Add your bank details before requesting a payout.")
+
+    minimum = Decimal(settings.MINIMUM_AFFILIATE_WITHDRAWAL)
+    if amount < minimum:
+        raise ValidationFailedError(f"The minimum withdrawal amount is \u20a6{minimum}.")
+
+    withdrawable = affiliate.withdrawable_balance
+    if amount > withdrawable:
+        raise ValidationFailedError(
+            f"You can only withdraw up to your available balance of \u20a6{withdrawable}."
+        )
+
+    candidates = (
+        affiliate.commissions.select_for_update()
+        .filter(status=CommissionStatus.AVAILABLE, payout__isnull=True)
+        .order_by("created_at")
+    )
+
+    reserved_ids = []
+    running_total = Decimal("0.00")
+    for commission in candidates:
+        if running_total >= amount:
+            break
+        reserved_ids.append(commission.pk)
+        running_total += commission.commission_amount
+
+    if running_total < amount:
+        raise ValidationFailedError("Your available balance changed - please try again.")
+
+    payout = AffiliatePayout.objects.create(
+        affiliate=affiliate,
+        amount=running_total,
+        reference=generate_reference("APO"),
+        bank_name=affiliate.bank_name,
+        bank_code=affiliate.bank_code,       # <-- new line
+        bank_account_number=affiliate.bank_account_number,
+        bank_account_name=affiliate.bank_account_name,
+        status=PayoutStatus.PENDING,
+    )
+
+    AffiliateCommission.objects.filter(pk__in=reserved_ids).update(payout=payout)
+
+    return payout
+
+
+def mark_affiliate_payout_processing(*, payout):
+    payout.status = PayoutStatus.PROCESSING
+    payout.save(update_fields=["status", "updated_at"])
+    return payout
+
+
+@transaction.atomic
+def mark_affiliate_payout_paid(*, payout):
+    payout.status = PayoutStatus.PAID
+    payout.processed_at = timezone.now()
+    payout.save(update_fields=["status", "processed_at", "updated_at"])
+
+    payout.commissions.filter(status=CommissionStatus.AVAILABLE).update(status=CommissionStatus.PAID)
+    return payout
+
+
+def mark_affiliate_payout_failed(*, payout, reason=""):
+    payout.status = PayoutStatus.FAILED
+    if reason:
+        payout.notes = reason
+    payout.save(update_fields=["status", "notes", "updated_at"])
+    payout.commissions.update(payout=None)
+    return payout
+
+
+def cancel_affiliate_payout(*, payout, reason=""):
+    payout.status = PayoutStatus.CANCELLED
+    if reason:
+        payout.notes = reason
+    payout.save(update_fields=["status", "notes", "updated_at"])
+    payout.commissions.update(payout=None)
+    return payout
+
+@transaction.atomic
+def send_affiliate_payout(*, payout):
+    """See apps.sellers.services.send_seller_payout - identical logic, affiliate side."""
+    from apps.payments.services import create_transfer_recipient, initiate_transfer
+
+    if payout.status != PayoutStatus.PENDING:
+        raise ValidationFailedError("Only pending payouts can be sent.")
+
+    recipient_code = create_transfer_recipient(
+        name=payout.bank_account_name,
+        account_number=payout.bank_account_number,
+        bank_code=payout.bank_code,
+    )
+
+    response = initiate_transfer(
+        recipient_code=recipient_code,
+        amount=payout.amount,
+        reference=payout.reference,
+        reason=f"Payout {payout.reference} to {payout.affiliate.affiliate_code}",
+    )
+
+    payout.status = PayoutStatus.PROCESSING
+    payout.provider_reference = response.get("transfer_code", "")
+    payout.save(update_fields=["status", "provider_reference", "updated_at"])
+    return payout

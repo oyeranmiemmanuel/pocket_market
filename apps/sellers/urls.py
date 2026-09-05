@@ -22,4 +22,11 @@ urlpatterns = [
     # Phase 4 - order management
     path("orders/", views.order_item_list_view, name="order_item_list"),
     path("orders/<uuid:item_id>/update-status/", views.update_fulfillment_status_view, name="update_fulfillment_status"),
+
+    # PHASE 9
+        path("payouts/", views.payout_list_view, name="payouts"),
+
+    # PHASE 11
+        path("store-settings/", views.store_settings_view, name="store_settings"),
+
 ]

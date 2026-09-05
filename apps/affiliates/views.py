@@ -5,10 +5,13 @@ from django.shortcuts import get_object_or_404, redirect, render
 
 from apps.catalog.models import Product
 from apps.core.exceptions import ValidationFailedError
-
+from .forms import AffiliatePayoutRequestForm  # add to your existing forms import line
+from .services import request_affiliate_payout  # add to your existing services import line
 from .forms import AffiliateBankDetailsForm
 from .permissions import active_affiliate_required
 from .services import apply_for_affiliate, generate_affiliate_link
+from apps.payments.services import PaystackTransferError, list_banks, resolve_bank_account
+from .services import request_affiliate_payout, send_affiliate_payout  # add to your existing services import
 
 
 @login_required(login_url="accounts:login")
@@ -87,7 +90,35 @@ def my_conversions_view(request):
         "status_filter": status_filter,
     })
 
+@active_affiliate_required
+def payout_list_view(request):
+    """Phase 9 - mirrors sellers.views.payout_list_view exactly."""
+    profile = request.user.affiliate_profile
 
+    if request.method == "POST":
+        form = AffiliatePayoutRequestForm(request.POST)
+        if form.is_valid():
+            try:
+                payout = request_affiliate_payout(affiliate=profile, amount=form.cleaned_data["amount"])
+            except ValidationFailedError as e:
+                messages.error(request, str(e))
+            else:
+                messages.success(request, f"Payout request {payout.reference} submitted for \u20a6{payout.amount}.")
+            return redirect("affiliates:payouts")
+    else:
+        form = AffiliatePayoutRequestForm()
+
+    payouts = profile.payouts.order_by("-created_at")
+    paginator = Paginator(payouts, 20)
+    page_obj = paginator.get_page(request.GET.get("page"))
+
+    return render(request, "affiliates/payouts.html", {
+        "profile": profile,
+        "withdrawable_balance": profile.withdrawable_balance,
+        "payouts_in_progress": profile.payouts_in_progress_total,
+        "form": form,
+        "page_obj": page_obj,
+    })
 # ---------------------------------------------------------------------------
 # Referral links - phase 6.
 # ---------------------------------------------------------------------------
@@ -127,13 +158,37 @@ def generate_link_view(request, product_id):
 def bank_details_view(request):
     profile = request.user.affiliate_profile
 
+    try:
+        banks = list_banks()
+    except PaystackTransferError as e:
+        banks = []
+        messages.warning(request, f"Could not load the bank list right now: {e}")
+
     if request.method == "POST":
         form = AffiliateBankDetailsForm(request.POST, instance=profile)
         if form.is_valid():
-            form.save()
-            messages.success(request, "Bank details updated.")
+            bank_code = form.cleaned_data["bank_code"]
+            account_number = form.cleaned_data["bank_account_number"]
+
+            try:
+                resolved = resolve_bank_account(account_number=account_number, bank_code=bank_code)
+            except PaystackTransferError as e:
+                messages.error(request, f"Could not verify that account: {e}")
+                return render(request, "affiliates/bank_details.html", {"form": form, "banks": banks, "profile": profile})
+
+            bank_name = next((b["name"] for b in banks if b["code"] == bank_code), "")
+
+            profile.bank_code = bank_code
+            profile.bank_name = bank_name
+            profile.bank_account_number = resolved["account_number"]
+            profile.bank_account_name = resolved["account_name"]
+            profile.save(update_fields=[
+                "bank_code", "bank_name", "bank_account_number", "bank_account_name", "updated_at",
+            ])
+
+            messages.success(request, f"Bank details verified and saved for {resolved['account_name']}.")
             return redirect("affiliates:dashboard")
     else:
         form = AffiliateBankDetailsForm(instance=profile)
 
-    return render(request, "affiliates/bank_details.html", {"form": form})
+    return render(request, "affiliates/bank_details.html", {"form": form, "banks": banks, "profile": profile})

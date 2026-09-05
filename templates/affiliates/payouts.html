@@ -1,0 +1,88 @@
+{% extends 'core/base.html' %}
+{% block title %}Payouts | Pocket Market{% endblock %}
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-12">
+    <div class="flex items-center justify-between mb-8">
+        <h1 class="text-3xl font-bold text-gray-800">Payouts</h1>
+        <a href="{% url 'affiliates:dashboard' %}" class="text-indigo-600 font-semibold text-sm hover:underline">
+            Back to Dashboard
+        </a>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <p class="p-3 rounded-lg {% if message.tags == 'error' %}bg-red-50 text-red-700{% else %}bg-green-50 text-green-700{% endif %} text-sm mb-4">{{ message }}</p>
+        {% endfor %}
+    {% endif %}
+
+    <div class="bg-white rounded-xl shadow p-6 mb-8">
+        <p class="text-sm text-gray-500 mb-1">Withdrawable Now</p>
+        <p class="text-3xl font-bold text-green-600 mb-4">₦{{ profile.withdrawable_balance }}</p>
+
+        <form method="post" class="flex gap-3 items-end">
+            {% csrf_token %}
+            <div class="flex-1">
+                <label class="block text-sm text-gray-600 mb-1">Amount (₦)</label>
+                {{ form.amount }}
+                {% if form.amount.errors %}
+                    <p class="text-red-600 text-xs mt-1">{{ form.amount.errors.0 }}</p>
+                {% endif %}
+            </div>
+            <button type="submit" class="bg-indigo-600 text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-indigo-700">
+                Request Payout
+            </button>
+        </form>
+        <p class="text-xs text-gray-400 mt-2">
+            Payouts go to the bank details on your <a href="{% url 'affiliates:bank_details' %}" class="text-indigo-600 hover:underline">Bank Details</a> page.
+        </p>
+    </div>
+
+    <h2 class="text-lg font-semibold text-gray-800 mb-4">Payout History</h2>
+    {% if page_obj.object_list %}
+        <div class="bg-white rounded-xl shadow overflow-hidden">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-50 text-gray-500 text-left">
+                    <tr>
+                        <th class="px-4 py-3">Reference</th>
+                        <th class="px-4 py-3">Amount</th>
+                        <th class="px-4 py-3">Status</th>
+                        <th class="px-4 py-3">Requested</th>
+                        <th class="px-4 py-3">Processed</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    {% for payout in page_obj.object_list %}
+                        <tr>
+                            <td class="px-4 py-3 font-mono text-xs">{{ payout.reference }}</td>
+                            <td class="px-4 py-3 font-semibold">₦{{ payout.amount }}</td>
+                            <td class="px-4 py-3">
+                                <span class="px-2 py-1 rounded-full text-xs font-semibold
+                                    {% if payout.status == 'paid' %}bg-green-100 text-green-700
+                                    {% elif payout.status == 'failed' or payout.status == 'cancelled' %}bg-red-100 text-red-700
+                                    {% else %}bg-amber-100 text-amber-700{% endif %}">
+                                    {{ payout.get_status_display }}
+                                </span>
+                            </td>
+                            <td class="px-4 py-3 text-gray-500">{{ payout.created_at|date:"M d, Y" }}</td>
+                            <td class="px-4 py-3 text-gray-500">{{ payout.processed_at|date:"M d, Y"|default:"-" }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if page_obj.has_other_pages %}
+            <div class="flex gap-2 mt-6 text-sm">
+                {% if page_obj.has_previous %}
+                    <a href="?page={{ page_obj.previous_page_number }}" class="text-indigo-600 hover:underline">Previous</a>
+                {% endif %}
+                <span class="text-gray-400">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+                {% if page_obj.has_next %}
+                    <a href="?page={{ page_obj.next_page_number }}" class="text-indigo-600 hover:underline">Next</a>
+                {% endif %}
+            </div>
+        {% endif %}
+    {% else %}
+        <p class="text-gray-500 text-sm">No payout requests yet.</p>
+    {% endif %}
+</div>
+{% endblock %}

@@ -28,6 +28,7 @@
             <thead class="bg-gray-50 text-gray-500 uppercase text-xs">
                 <tr>
                     <th class="px-5 py-3">Order Ref</th>
+                    <th class="px-5 py-3">Customer</th>
                     <th class="px-5 py-3">Product</th>
                     <th class="px-5 py-3">Qty</th>
                     <th class="px-5 py-3">Subtotal</th>
@@ -40,6 +41,9 @@
                 {% for item in page_obj.object_list %}
                 <tr>
                     <td class="px-5 py-3 font-medium text-gray-800">{{ item.order.reference }}</td>
+                    <td class="px-5 py-3 text-gray-600">
+                        {% if item.order.user %}{{ item.order.user.first_name }} {{ item.order.user.last_name|first }}.{% else %}Guest{% endif %}
+                    </td>
                     <td class="px-5 py-3">{{ item.product_name }}</td>
                     <td class="px-5 py-3">{{ item.quantity }}</td>
                     <td class="px-5 py-3">₦{{ item.subtotal }}</td>

@@ -16,4 +16,6 @@ urlpatterns = [
 
     # Phase 7 - commission calculations
     path("conversions/", views.my_conversions_view, name="my_conversions"),
+
+        path("payouts/", views.payout_list_view, name="payouts"),
 ]

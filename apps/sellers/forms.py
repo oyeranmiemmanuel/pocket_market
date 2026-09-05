@@ -1,5 +1,5 @@
 from django import forms
-
+from decimal import Decimal
 from apps.catalog.models import Category, Product
 
 from .models import SellerProfile
@@ -44,6 +44,25 @@ class SellerApplicationForm(forms.Form):
 
 
 class SellerBankDetailsForm(forms.ModelForm):
+    """
+    Phase 10 - only bank_code and account number are typed by the
+    seller. bank_name and bank_account_name are always filled in
+    server-side from Paystack's own bank list / account resolution (see
+    views.bank_details_view) - never trusted from user input.
+    """
+
     class Meta:
         model = SellerProfile
-        fields = ["bank_name", "bank_account_number", "bank_account_name"]
+        fields = ["bank_code", "bank_account_number"]
+
+class SellerPayoutRequestForm(forms.Form):
+    amount = forms.DecimalField(max_digits=12, decimal_places=2, min_value=Decimal("0.01"))
+
+
+class SellerStoreSettingsForm(forms.ModelForm):
+    class Meta:
+        model = SellerProfile
+        fields = ["store_name", "store_description", "logo", "banner"]
+        widgets = {
+            "store_description": forms.Textarea(attrs={"rows": 4}),
+        }

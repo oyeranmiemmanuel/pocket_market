@@ -1,5 +1,5 @@
 from decimal import Decimal
-
+from apps.core.enums import PayoutStatus
 from django.conf import settings
 from django.db import models
 from django.urls import reverse
@@ -50,6 +50,10 @@ class AffiliateProfile(BaseModel):
                    "Leave blank to use the platform default.",
     )
 
+    bank_code = models.CharField(
+        max_length=10, blank=True,
+        help_text="Paystack bank code - required to send this affiliate a payout.",
+    )
     bank_name = models.CharField(max_length=100, blank=True)
     bank_account_number = models.CharField(max_length=20, blank=True)
     bank_account_name = models.CharField(max_length=150, blank=True)
@@ -111,6 +115,23 @@ class AffiliateProfile(BaseModel):
         return self._commission_sum(CommissionStatus.PENDING, CommissionStatus.CONFIRMED)
 
     @property
+    def withdrawable_balance(self):
+        """
+        Cleared AVAILABLE commissions not already reserved by an
+        unresolved payout request (Phase 9) - what this affiliate can
+        actually request right now.
+        """
+        return self.commissions.filter(
+            status=CommissionStatus.AVAILABLE, payout__isnull=True,
+        ).aggregate(total=models.Sum("commission_amount"))["total"] or Decimal("0.00")
+
+    @property
+    def payouts_in_progress_total(self):
+        """Sum of payouts this affiliate has requested that haven't resolved yet."""
+        return self.payouts.filter(
+            status__in=[PayoutStatus.PENDING, PayoutStatus.PROCESSING],
+        ).aggregate(total=models.Sum("amount"))["total"] or Decimal("0.00")
+    @property
     def available_earnings(self):
         """Cleared and ready to be requested as a payout (Phase 9)."""
         return self._commission_sum(CommissionStatus.AVAILABLE)
@@ -169,6 +190,21 @@ class AffiliateLink(BaseModel):
     @property
     def total_clicks(self):
         return self.clicks.count()
+    @property
+    def total_conversions(self):
+        return self.commissions.filter(reversal_of__isnull=True).exclude(status="cancelled").count()
+
+    @property
+    def total_earnings(self):
+        return self.commissions.filter(reversal_of__isnull=True).exclude(status="cancelled").aggregate(
+            total=models.Sum("commission_amount")
+        )["total"] or Decimal("0.00")
+
+    @property
+    def commission_rate(self):
+        """Current effective rate for this (affiliate, product) pair - spec section 16's hierarchy."""
+        from .services import resolve_affiliate_commission_rate
+        return resolve_affiliate_commission_rate(product=self.product, affiliate=self.affiliate)
 
 
 class AffiliateClick(BaseModel):
@@ -287,6 +323,16 @@ class AffiliateCommission(BaseModel):
         related_name="affiliate_commissions",
     )
 
+    payout = models.ForeignKey(
+        "AffiliatePayout",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="commissions",
+        help_text="Set once this commission has been reserved by a "
+                   "payout request (Phase 9) - null means it's still "
+                   "unreserved AVAILABLE balance the affiliate could request.",
+    )
     affiliate_link = models.ForeignKey(
         AffiliateLink,
         on_delete=models.SET_NULL,
@@ -349,3 +395,55 @@ class AffiliateCommission(BaseModel):
 
     def __str__(self):
         return f"{self.affiliate} earns {self.commission_amount} on {self.order_item} ({self.get_status_display()})"
+
+class AffiliatePayout(BaseModel):
+    """
+    Phase 9 (spec section 20) - mirrors SellerPayout exactly. Created
+    only through apps.affiliates.services.request_affiliate_payout,
+    which reserves the exact AffiliateCommission rows this payout
+    settles (see AffiliateCommission.payout).
+    """
+
+    affiliate = models.ForeignKey(
+        AffiliateProfile,
+        on_delete=models.PROTECT,
+        related_name="payouts",
+        help_text="PROTECT - a payout must never lose track of who requested it.",
+    )
+
+    amount = models.DecimalField(
+        max_digits=12, decimal_places=2,
+        help_text="The exact sum of the AffiliateCommission rows this payout reserved.",
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=PayoutStatus.choices,
+        default=PayoutStatus.PENDING,
+    )
+
+    reference = models.CharField(max_length=100, unique=True)
+
+    bank_name = models.CharField(max_length=100)
+    bank_account_number = models.CharField(max_length=20)
+    bank_account_name = models.CharField(max_length=150)
+    bank_code = models.CharField(max_length=10, blank=True)
+    provider_reference = models.CharField(
+        max_length=100, blank=True,
+        help_text="Paystack's transfer_code for this payout, once sent (Phase 10).",
+    )
+
+
+    processed_at = models.DateTimeField(null=True, blank=True)
+
+    notes = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        db_table = "affiliate_payouts"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["affiliate", "status"]),
+        ]
+
+    def __str__(self):
+        return f"{self.reference} - {self.affiliate} - {self.get_status_display()}"

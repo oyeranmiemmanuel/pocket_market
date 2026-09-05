@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-
+from decimal import Decimal
 from dotenv import load_dotenv
 
 """
@@ -181,3 +181,8 @@ PAYSTACK_WEBHOOK_URL = os.environ.get(
 AFFILIATE_ATTRIBUTION_WINDOW_DAYS = int(
     os.environ.get("AFFILIATE_ATTRIBUTION_WINDOW_DAYS", "30")
 )
+
+# Phase 9 - seller/affiliate payouts. Configurable minimum withdrawal
+# amounts (spec section 21: "Do not hard-code them into templates").
+MINIMUM_SELLER_WITHDRAWAL = Decimal(os.environ.get("MINIMUM_SELLER_WITHDRAWAL", "10000"))
+MINIMUM_AFFILIATE_WITHDRAWAL = Decimal(os.environ.get("MINIMUM_AFFILIATE_WITHDRAWAL", "5000"))

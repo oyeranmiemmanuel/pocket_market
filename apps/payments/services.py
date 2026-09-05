@@ -8,7 +8,7 @@ Product.
 """
 
 from decimal import Decimal
-
+from django.core.cache import cache
 import requests
 from django.conf import settings
 from django.db import transaction
@@ -25,7 +25,112 @@ from .models import Payment, PaymentStatus
 PAYSTACK_INITIALIZE_URL = "https://api.paystack.co/transaction/initialize"
 PAYSTACK_VERIFY_URL = "https://api.paystack.co/transaction/verify/{reference}"
 
+PAYSTACK_BANK_LIST_URL = "https://api.paystack.co/bank"
+PAYSTACK_RESOLVE_ACCOUNT_URL = "https://api.paystack.co/bank/resolve"
+PAYSTACK_CREATE_RECIPIENT_URL = "https://api.paystack.co/transferrecipient"
+PAYSTACK_INITIATE_TRANSFER_URL = "https://api.paystack.co/transfer"
 
+BANK_LIST_CACHE_KEY = "paystack_bank_list_ngn"
+BANK_LIST_CACHE_SECONDS = 60 * 60 * 24  # Paystack's bank list barely ever changes
+
+
+class PaystackTransferError(ValidationFailedError):
+    pass
+
+
+def list_banks():
+    """
+    Phase 10 - Nigerian bank list + codes, needed to populate the bank
+    dropdown on the seller/affiliate bank-details form. Paystack's
+    Transfer Recipient API requires a bank_code, not a free-text bank
+    name (spec section 22). Cached for a day - this list barely changes.
+    """
+    cached = cache.get(BANK_LIST_CACHE_KEY)
+    if cached is not None:
+        return cached
+
+    headers = {"Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}"}
+    response = requests.get(
+        PAYSTACK_BANK_LIST_URL, params={"currency": "NGN"}, headers=headers, timeout=10,
+    )
+    res_data = response.json()
+
+    if not res_data.get("status"):
+        raise PaystackTransferError(res_data.get("message", "Could not load the bank list."))
+
+    banks = [{"name": bank["name"], "code": bank["code"]} for bank in res_data["data"]]
+    cache.set(BANK_LIST_CACHE_KEY, banks, BANK_LIST_CACHE_SECONDS)
+    return banks
+
+
+def resolve_bank_account(*, account_number, bank_code):
+    """
+    Spec section 22: "Validate: bank, account number, account name."
+    Confirms the account exists and returns the account name exactly as
+    the bank has it on file - callers use this name instead of trusting
+    what the user typed, so a payout can never go to a mistyped account.
+    """
+    headers = {"Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}"}
+    params = {"account_number": account_number, "bank_code": bank_code}
+    response = requests.get(PAYSTACK_RESOLVE_ACCOUNT_URL, params=params, headers=headers, timeout=10)
+    res_data = response.json()
+
+    if not res_data.get("status"):
+        raise PaystackTransferError(res_data.get("message", "Could not verify that account."))
+
+    return {
+        "account_name": res_data["data"]["account_name"],
+        "account_number": res_data["data"]["account_number"],
+    }
+
+
+def create_transfer_recipient(*, name, account_number, bank_code):
+    headers = {"Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}"}
+    data = {
+        "type": "nuban",
+        "name": name,
+        "account_number": account_number,
+        "bank_code": bank_code,
+        "currency": "NGN",
+    }
+    response = requests.post(PAYSTACK_CREATE_RECIPIENT_URL, json=data, headers=headers, timeout=10)
+    res_data = response.json()
+
+    if not res_data.get("status"):
+        raise PaystackTransferError(res_data.get("message", "Could not register payout recipient."))
+
+    return res_data["data"]["recipient_code"]
+
+
+def initiate_transfer(*, recipient_code, amount, reference, reason):
+    """
+    `reference` should be the payout's own reference (SellerPayout.reference /
+    AffiliatePayout.reference) - Paystack echoes it back in the
+    transfer.success/transfer.failed webhook payload, which is how
+    apps.payments.views.paystack_webhook knows which payout to settle.
+
+    Note: unless your Paystack business account has asked support to
+    disable OTP for API-initiated transfers, this call will come back
+    with status "otp" rather than completing automatically - Paystack's
+    normal behaviour for programmatic transfers.
+    """
+    headers = {"Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}"}
+    data = {
+        "source": "balance",
+        "amount": int(amount * 100),  # kobo
+        "recipient": recipient_code,
+        "reference": reference,
+        "reason": reason,
+    }
+    response = requests.post(PAYSTACK_INITIATE_TRANSFER_URL, json=data, headers=headers, timeout=10)
+    res_data = response.json()
+
+    if not res_data.get("status"):
+        raise PaystackTransferError(res_data.get("message", "Could not initiate transfer."))
+
+    return res_data["data"]
+
+    
 class PaymentInitializationError(ValidationFailedError):
     pass
 

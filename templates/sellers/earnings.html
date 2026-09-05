@@ -2,6 +2,7 @@
 {% block title %}My Earnings | Top Tech{% endblock %}
 {% block content %}
 <div class="max-w-4xl mx-auto px-4 py-12">
+
     <div class="flex items-center justify-between mb-8">
         <h1 class="text-3xl font-bold text-gray-800">My Earnings</h1>
         <a href="{% url 'sellers:dashboard' %}" class="text-indigo-600 font-semibold text-sm hover:underline">
@@ -9,11 +10,46 @@
         </a>
     </div>
 
+    <!-- Earnings Breakdown -->
+    <div class="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-8">
+
+        <div class="bg-white rounded-xl shadow p-5">
+            <p class="text-sm text-gray-500">Gross Sales</p>
+            <p class="text-xl font-bold text-gray-800">₦{{ gross_sales }}</p>
+        </div>
+
+        <div class="bg-white rounded-xl shadow p-5">
+            <p class="text-sm text-gray-500">Platform Fees</p>
+            <p class="text-xl font-bold text-gray-500">-₦{{ platform_fees }}</p>
+        </div>
+
+        <div class="bg-white rounded-xl shadow p-5">
+            <p class="text-sm text-gray-500">Affiliate Fees</p>
+            <p class="text-xl font-bold text-gray-500">-₦{{ affiliate_fees }}</p>
+        </div>
+
+        <div class="bg-white rounded-xl shadow p-5">
+            <p class="text-sm text-gray-500">Refunds</p>
+            <p class="text-xl font-bold text-red-600">-₦{{ refunds }}</p>
+        </div>
+
+        <div class="bg-white rounded-xl shadow p-5">
+            <p class="text-sm text-gray-500">Net Earnings</p>
+            <p class="text-xl font-bold text-green-600">₦{{ net_earnings }}</p>
+        </div>
+
+    </div>
+
+    <!-- Existing status filters -->
     <div class="flex gap-2 mb-6 text-sm">
         <a href="{% url 'sellers:earnings' %}" class="px-3 py-1.5 rounded-full {% if not status_filter %}bg-indigo-600 text-white{% else %}bg-white text-gray-600 border border-gray-200{% endif %}">All</a>
+
         <a href="?status=pending" class="px-3 py-1.5 rounded-full {% if status_filter == 'pending' %}bg-indigo-600 text-white{% else %}bg-white text-gray-600 border border-gray-200{% endif %}">Pending</a>
+
         <a href="?status=confirmed" class="px-3 py-1.5 rounded-full {% if status_filter == 'confirmed' %}bg-indigo-600 text-white{% else %}bg-white text-gray-600 border border-gray-200{% endif %}">Confirmed</a>
+
         <a href="?status=available" class="px-3 py-1.5 rounded-full {% if status_filter == 'available' %}bg-indigo-600 text-white{% else %}bg-white text-gray-600 border border-gray-200{% endif %}">Available</a>
+
         <a href="?status=paid" class="px-3 py-1.5 rounded-full {% if status_filter == 'paid' %}bg-indigo-600 text-white{% else %}bg-white text-gray-600 border border-gray-200{% endif %}">Paid</a>
     </div>
 
@@ -32,15 +68,34 @@
                         <th class="px-4 py-3">Date</th>
                     </tr>
                 </thead>
+
                 <tbody class="divide-y divide-gray-100">
                     {% for earning in page_obj.object_list %}
                         <tr>
-                            <td class="px-4 py-3 font-mono text-xs">{{ earning.order.reference }}</td>
-                            <td class="px-4 py-3">{{ earning.order_item.product_name }}</td>
-                            <td class="px-4 py-3">₦{{ earning.order_amount }}</td>
-                            <td class="px-4 py-3 text-gray-500">₦{{ earning.platform_commission_amount }}</td>
-                            <td class="px-4 py-3 text-gray-500">₦{{ earning.affiliate_commission_amount }}</td>
-                            <td class="px-4 py-3 font-semibold">₦{{ earning.earning_amount }}</td>
+                            <td class="px-4 py-3 font-mono text-xs">
+                                {{ earning.order.reference }}
+                            </td>
+
+                            <td class="px-4 py-3">
+                                {{ earning.order_item.product_name }}
+                            </td>
+
+                            <td class="px-4 py-3">
+                                ₦{{ earning.order_amount }}
+                            </td>
+
+                            <td class="px-4 py-3 text-gray-500">
+                                ₦{{ earning.platform_commission_amount }}
+                            </td>
+
+                            <td class="px-4 py-3 text-gray-500">
+                                ₦{{ earning.affiliate_commission_amount }}
+                            </td>
+
+                            <td class="px-4 py-3 font-semibold">
+                                ₦{{ earning.earning_amount }}
+                            </td>
+
                             <td class="px-4 py-3">
                                 <span class="px-2 py-1 rounded-full text-xs font-semibold
                                     {% if earning.status == 'available' %}bg-green-100 text-green-700
@@ -50,7 +105,10 @@
                                     {{ earning.get_status_display }}
                                 </span>
                             </td>
-                            <td class="px-4 py-3 text-gray-500">{{ earning.created_at|date:"M d, Y" }}</td>
+
+                            <td class="px-4 py-3 text-gray-500">
+                                {{ earning.created_at|date:"M d, Y" }}
+                            </td>
                         </tr>
                     {% endfor %}
                 </tbody>
@@ -59,17 +117,33 @@
 
         {% if page_obj.has_other_pages %}
             <div class="flex gap-2 mt-6 text-sm">
+
                 {% if page_obj.has_previous %}
-                    <a href="?page={{ page_obj.previous_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}" class="text-indigo-600 hover:underline">Previous</a>
+                    <a href="?page={{ page_obj.previous_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}"
+                       class="text-indigo-600 hover:underline">
+                        Previous
+                    </a>
                 {% endif %}
-                <span class="text-gray-400">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+
+                <span class="text-gray-400">
+                    Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                </span>
+
                 {% if page_obj.has_next %}
-                    <a href="?page={{ page_obj.next_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}" class="text-indigo-600 hover:underline">Next</a>
+                    <a href="?page={{ page_obj.next_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}"
+                       class="text-indigo-600 hover:underline">
+                        Next
+                    </a>
                 {% endif %}
+
             </div>
         {% endif %}
+
     {% else %}
-        <p class="text-gray-500 text-sm">No earnings yet - once a customer buys one of your products, it'll show up here.</p>
+        <p class="text-gray-500 text-sm">
+            No earnings yet - once a customer buys one of your products, it'll show up here.
+        </p>
     {% endif %}
+
 </div>
 {% endblock %}

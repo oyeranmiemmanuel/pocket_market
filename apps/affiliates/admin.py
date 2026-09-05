@@ -1,16 +1,21 @@
 from django.contrib import admin
 
-from .models import AffiliateClick, AffiliateCommission, AffiliateLink, AffiliateProfile
+from .models import AffiliateClick, AffiliateCommission, AffiliateLink, AffiliatePayout, AffiliateProfile
+from apps.core.exceptions import ValidationFailedError
 from .services import (
     approve_affiliate,
+    cancel_affiliate_payout,
     cancel_commission,
     confirm_commission,
+    mark_affiliate_payout_failed,
+    mark_affiliate_payout_paid,
+    mark_affiliate_payout_processing,
     mark_commission_available,
     reject_affiliate,
     reverse_commission,
+    send_affiliate_payout,          # new
     suspend_affiliate,
 )
-
 
 @admin.register(AffiliateProfile)
 class AffiliateProfileAdmin(admin.ModelAdmin):
@@ -21,7 +26,18 @@ class AffiliateProfileAdmin(admin.ModelAdmin):
     list_filter = ["status"]
     search_fields = ["affiliate_code", "user__username", "user__email"]
     readonly_fields = ["affiliate_code", "reviewed_at", "reviewed_by"]
-    actions = ["approve_affiliates", "reject_affiliates", "suspend_affiliates"]
+    actions = ["send_via_paystack", "mark_processing", "mark_paid", "mark_failed", "cancel_payouts"]
+
+    @admin.action(description="Send selected pending payouts via Paystack")
+    def send_via_paystack(self, request, queryset):
+        count = 0
+        for payout in queryset.filter(status="pending"):
+            try:
+                send_affiliate_payout(payout=payout)
+                count += 1
+            except ValidationFailedError as e:
+                self.message_user(request, f"{payout.reference}: {e}", level="ERROR")
+        self.message_user(request, f"Sent {count} payout(s) via Paystack.")
 
     @admin.action(description="Approve selected affiliates")
     def approve_affiliates(self, request, queryset):
@@ -128,3 +144,49 @@ class AffiliateCommissionAdmin(admin.ModelAdmin):
             reverse_commission(commission=commission, reason="Reversed via admin bulk action.")
             count += 1
         self.message_user(request, f"Reversed {count} commission(s).")
+
+@admin.register(AffiliatePayout)
+class AffiliatePayoutAdmin(admin.ModelAdmin):
+    list_display = ["reference", "affiliate", "amount", "status", "created_at", "processed_at"]
+    list_filter = ["status", "created_at"]
+    search_fields = ["reference", "affiliate__affiliate_code", "bank_account_number"]
+    readonly_fields = [
+        "affiliate", "amount", "reference", "bank_name",
+        "bank_account_number", "bank_account_name", "processed_at",
+    ]
+    actions = ["mark_processing", "mark_paid", "mark_failed", "cancel_payouts"]
+
+    def has_add_permission(self, request):
+        return False
+
+    @admin.action(description="Mark selected payouts as processing")
+    def mark_processing(self, request, queryset):
+        count = 0
+        for payout in queryset.filter(status="pending"):
+            mark_affiliate_payout_processing(payout=payout)
+            count += 1
+        self.message_user(request, f"Marked {count} payout(s) as processing.")
+
+    @admin.action(description="Mark selected payouts as paid")
+    def mark_paid(self, request, queryset):
+        count = 0
+        for payout in queryset.filter(status__in=["pending", "processing"]):
+            mark_affiliate_payout_paid(payout=payout)
+            count += 1
+        self.message_user(request, f"Marked {count} payout(s) as paid.")
+
+    @admin.action(description="Mark selected payouts as failed")
+    def mark_failed(self, request, queryset):
+        count = 0
+        for payout in queryset.filter(status__in=["pending", "processing"]):
+            mark_affiliate_payout_failed(payout=payout, reason="Marked failed via admin bulk action.")
+            count += 1
+        self.message_user(request, f"Marked {count} payout(s) as failed.")
+
+    @admin.action(description="Cancel selected payouts")
+    def cancel_payouts(self, request, queryset):
+        count = 0
+        for payout in queryset.filter(status__in=["pending", "processing"]):
+            cancel_affiliate_payout(payout=payout, reason="Cancelled via admin bulk action.")
+            count += 1
+        self.message_user(request, f"Cancelled {count} payout(s).")

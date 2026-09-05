@@ -1,13 +1,19 @@
 from django.contrib import admin
 
-from .models import SellerEarning, SellerProfile
+from .models import SellerEarning, SellerPayout, SellerProfile  # add SellerPayout
+from apps.core.exceptions import ValidationFailedError
 from .services import (
     approve_seller,
     cancel_seller_earning,
+    cancel_seller_payout,
     confirm_seller_earning,
     mark_seller_earning_available,
+    mark_seller_payout_failed,
+    mark_seller_payout_paid,
+    mark_seller_payout_processing,
     reject_seller,
     reverse_seller_earning,
+    send_seller_payout,          # new
     suspend_seller,
 )
 
@@ -99,3 +105,66 @@ class SellerEarningAdmin(admin.ModelAdmin):
             reverse_seller_earning(earning=earning, reason="Reversed via admin bulk action.")
             count += 1
         self.message_user(request, f"Reversed {count} earning(s).")
+
+@admin.register(SellerPayout)
+class SellerPayoutAdmin(admin.ModelAdmin):
+    """
+    Phase 9. Payouts are requested by sellers (never created by hand
+    here), so this is read-only except for the status-transition actions
+    below, which go through the same services.py functions used
+    elsewhere - never a direct status edit (spec section 42).
+    """
+
+    list_display = ["reference", "seller", "amount", "status", "created_at", "processed_at"]
+    list_filter = ["status", "created_at"]
+    search_fields = ["reference", "seller__store_name", "bank_account_number"]
+    readonly_fields = [
+        "seller", "amount", "reference", "bank_name",
+        "bank_account_number", "bank_account_name", "processed_at",
+    ]
+    actions = ["send_via_paystack", "mark_processing", "mark_paid", "mark_failed", "cancel_payouts"]
+
+    @admin.action(description="Send selected pending payouts via Paystack")
+    def send_via_paystack(self, request, queryset):
+        count = 0
+        for payout in queryset.filter(status="pending"):
+            try:
+                send_seller_payout(payout=payout)
+                count += 1
+            except ValidationFailedError as e:
+                self.message_user(request, f"{payout.reference}: {e}", level="ERROR")
+        self.message_user(request, f"Sent {count} payout(s) via Paystack.")
+    def has_add_permission(self, request):
+        return False
+
+    @admin.action(description="Mark selected payouts as processing")
+    def mark_processing(self, request, queryset):
+        count = 0
+        for payout in queryset.filter(status="pending"):
+            mark_seller_payout_processing(payout=payout)
+            count += 1
+        self.message_user(request, f"Marked {count} payout(s) as processing.")
+
+    @admin.action(description="Mark selected payouts as paid")
+    def mark_paid(self, request, queryset):
+        count = 0
+        for payout in queryset.filter(status__in=["pending", "processing"]):
+            mark_seller_payout_paid(payout=payout)
+            count += 1
+        self.message_user(request, f"Marked {count} payout(s) as paid.")
+
+    @admin.action(description="Mark selected payouts as failed")
+    def mark_failed(self, request, queryset):
+        count = 0
+        for payout in queryset.filter(status__in=["pending", "processing"]):
+            mark_seller_payout_failed(payout=payout, reason="Marked failed via admin bulk action.")
+            count += 1
+        self.message_user(request, f"Marked {count} payout(s) as failed.")
+
+    @admin.action(description="Cancel selected payouts")
+    def cancel_payouts(self, request, queryset):
+        count = 0
+        for payout in queryset.filter(status__in=["pending", "processing"]):
+            cancel_seller_payout(payout=payout, reason="Cancelled via admin bulk action.")
+            count += 1
+        self.message_user(request, f"Cancelled {count} payout(s).")

@@ -17,6 +17,9 @@
             <a href="{% url 'sellers:earnings' %}" class="text-indigo-600 font-semibold text-sm hover:underline">
                 Earnings
             </a>
+                        <a href="{% url 'sellers:payouts' %}" class="text-indigo-600 font-semibold text-sm hover:underline">
+                Payouts
+            </a>
             <a href="{% url 'sellers:bank_details' %}" class="text-indigo-600 font-semibold text-sm hover:underline">
                 Bank Details
             </a>
@@ -85,7 +88,18 @@
             <p class="text-2xl font-bold text-red-600">₦{{ refunded_amount }}</p>
         </div>
     </div>
-
-    <p class="text-sm text-gray-400">Pending earnings clear to "Available" once confirmed by the platform. Requesting a payout from an available balance is a later phase.</p>
+    <div class="flex items-center justify-between bg-white rounded-xl shadow p-5 mb-4">
+        <div>
+            <p class="text-sm text-gray-500">Withdrawable Now</p>
+            <p class="text-2xl font-bold text-green-600">₦{{ withdrawable_balance }}</p>
+            {% if payouts_in_progress %}
+                <p class="text-xs text-gray-400">₦{{ payouts_in_progress }} already requested and awaiting payout</p>
+            {% endif %}
+        </div>
+        <a href="{% url 'sellers:payouts' %}" class="bg-indigo-600 text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-indigo-700">
+            Request Payout
+        </a>
+    </div>
+    <p class="text-sm text-gray-400">Pending earnings clear to "Available" once confirmed by the platform.</p>
 </div>
 {% endblock %}

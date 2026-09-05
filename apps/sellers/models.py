@@ -1,5 +1,5 @@
 from decimal import Decimal
-
+from apps.core.enums import PayoutStatus
 from django.conf import settings
 from django.db import models
 
@@ -72,6 +72,11 @@ class SellerProfile(BaseModel):
     bank_name = models.CharField(max_length=100, blank=True)
     bank_account_number = models.CharField(max_length=20, blank=True)
     bank_account_name = models.CharField(max_length=150, blank=True)
+    bank_code = models.CharField(max_length=10, blank=True)
+    provider_reference = models.CharField(
+        max_length=100, blank=True,
+        help_text="Paystack's transfer_code for this payout, once sent (Phase 10).",
+    )
 
     reviewed_at = models.DateTimeField(null=True, blank=True)
 
@@ -123,6 +128,27 @@ class SellerProfile(BaseModel):
         return self._earning_sum(EarningStatus.PENDING, EarningStatus.CONFIRMED)
 
     @property
+    def withdrawable_balance(self):
+        """
+        Cleared AVAILABLE earnings not already reserved by an unresolved
+        payout request (Phase 9). This is what a seller can actually
+        request right now - distinct from `available_earnings`, which
+        doesn't subtract earnings already reserved by a pending/
+        processing payout.
+        """
+        return self.earnings.filter(
+            status=EarningStatus.AVAILABLE, payout__isnull=True,
+        ).aggregate(total=models.Sum("earning_amount"))["total"] or Decimal("0.00")
+
+    @property
+    def payouts_in_progress_total(self):
+        """Sum of payouts this seller has requested that haven't resolved yet."""
+        return self.payouts.filter(
+            status__in=[PayoutStatus.PENDING, PayoutStatus.PROCESSING],
+        ).aggregate(total=models.Sum("amount"))["total"] or Decimal("0.00")
+
+
+    @property
     def available_earnings(self):
         """Cleared and ready to be requested as a payout (Phase 9)."""
         return self._earning_sum(EarningStatus.AVAILABLE)
@@ -145,6 +171,22 @@ class SellerProfile(BaseModel):
             reversal_of__isnull=True, status=EarningStatus.REVERSED,
         ).aggregate(total=models.Sum("order_amount"))["total"] or Decimal("0.00")
 
+
+    @property
+    def platform_fees_total(self):
+        """Phase 11 - platform's cut of this seller's sales, from the ledger (SALE entries only)."""
+        from apps.ledger.models import LedgerEntry, LedgerEntryType
+        return LedgerEntry.objects.filter(
+            order_item__seller=self, entry_type=LedgerEntryType.SALE,
+        ).aggregate(total=models.Sum("platform_commission_amount"))["total"] or Decimal("0.00")
+
+    @property
+    def affiliate_fees_total(self):
+        """Affiliate commission paid out of this seller's sales, from the ledger."""
+        from apps.ledger.models import LedgerEntry, LedgerEntryType
+        return LedgerEntry.objects.filter(
+            order_item__seller=self, entry_type=LedgerEntryType.SALE,
+        ).aggregate(total=models.Sum("affiliate_commission_amount"))["total"] or Decimal("0.00")
 
 class EarningStatus(models.TextChoices):
     """
@@ -246,6 +288,18 @@ class SellerEarning(BaseModel):
                    "original earning it cancels out.",
     )
 
+    payout = models.ForeignKey(
+        "SellerPayout",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="earnings",
+        help_text="Set once this earning has been reserved by a payout "
+                   "request (Phase 9) - null means it's still unreserved "
+                   "AVAILABLE balance the seller could request.",
+    )
+
+
     notes = models.CharField(max_length=255, blank=True)
 
     class Meta:
@@ -270,3 +324,56 @@ class SellerEarning(BaseModel):
 
     def __str__(self):
         return f"{self.seller} earns {self.earning_amount} on {self.order_item} ({self.get_status_display()})"
+
+class SellerPayout(BaseModel):
+    """
+    Phase 9 (spec section 19). A seller's request to withdraw part or
+    all of their withdrawable balance. Created only through
+    apps.sellers.services.request_seller_payout, which reserves the
+    exact SellerEarning rows this payout settles (see SellerEarning.payout)
+    so the same earnings can never be claimed by two payouts at once.
+
+    Bank details are snapshotted at request time, not read live off
+    SellerProfile - if a seller changes their bank details after
+    requesting a payout, the payout should still show/pay out to
+    whichever account was on file when it was requested (spec section 22).
+    """
+
+    seller = models.ForeignKey(
+        SellerProfile,
+        on_delete=models.PROTECT,
+        related_name="payouts",
+        help_text="PROTECT - a payout must never lose track of who requested it.",
+    )
+
+    amount = models.DecimalField(
+        max_digits=12, decimal_places=2,
+        help_text="The exact sum of the SellerEarning rows this payout reserved.",
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=PayoutStatus.choices,
+        default=PayoutStatus.PENDING,
+    )
+
+    reference = models.CharField(max_length=100, unique=True)
+
+    # Snapshots - see class docstring.
+    bank_name = models.CharField(max_length=100)
+    bank_account_number = models.CharField(max_length=20)
+    bank_account_name = models.CharField(max_length=150)
+
+    processed_at = models.DateTimeField(null=True, blank=True)
+
+    notes = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        db_table = "seller_payouts"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["seller", "status"]),
+        ]
+
+    def __str__(self):
+        return f"{self.reference} - {self.seller} - {self.get_status_display()}"

@@ -24,8 +24,8 @@
                     <div class="bg-white rounded-xl shadow p-5 flex items-center justify-between gap-4">
                         <div>
                             <p class="font-semibold text-gray-800">{{ link.product.name }}</p>
-                            <p class="text-sm text-gray-500">Code: <span class="font-mono">{{ link.referral_code }}</span></p>
-                            <p class="text-sm text-gray-500">Clicks: {{ link.total_clicks }}</p>
+                            <p class="text-sm text-gray-500">Code: <span class="font-mono">{{ link.referral_code }}</span> · Rate: {{ link.commission_rate }}%</p>
+                            <p class="text-sm text-gray-500">Clicks: {{ link.total_clicks }} · Conversions: {{ link.total_conversions }} · Earnings: ₦{{ link.total_earnings }}</p>
                         </div>
                         <div class="flex items-center gap-2">
                             <input

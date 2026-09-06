@@ -1,5 +1,0 @@
-
-ipython
-django-debug-toolbar<5
-pytest
-black

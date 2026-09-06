@@ -1,22 +1,39 @@
 {% extends 'core/base.html' %}
-{% block title %}Become an Affiliate | Pocket Market{% endblock %}
+
+{% block title %}Become an Affiliate | Top Tech{% endblock %}
+
 {% block content %}
 <div class="max-w-xl mx-auto px-4 py-12">
+
     <h1 class="text-3xl font-bold text-gray-800 mb-2">Become an Affiliate</h1>
-    <p class="text-gray-500 mb-8">Earn commission by referring customers. We'll review your application shortly.</p>
+    <p class="text-gray-500 mb-8">
+        Earn a commission for sales you refer. No store to set up - just apply and start sharing links once approved.
+    </p>
 
     {% if messages %}
-        {% for message in messages %}
-            <p class="p-3 rounded-lg bg-red-50 text-red-700 text-sm mb-4">{{ message }}</p>
-        {% endfor %}
+        <div class="mb-6 space-y-2">
+            {% for message in messages %}
+                <p class="p-3 rounded-lg bg-red-50 text-red-700 text-sm">{{ message }}</p>
+            {% endfor %}
+        </div>
     {% endif %}
 
-    <form method="post" class="bg-white rounded-xl shadow p-6">
-        {% csrf_token %}
-        <p class="text-gray-600 mb-4">No details needed - just confirm and we'll assign you a unique referral code once approved.</p>
-        <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-lg transition">
-            Apply Now
-        </button>
-    </form>
+    <div class="bg-white rounded-xl shadow p-6 sm:p-8 text-center">
+        <div class="w-16 h-16 rounded-full bg-indigo-50 flex items-center justify-center mx-auto mb-5">
+            <i class="fa-solid fa-handshake text-2xl text-indigo-600"></i>
+        </div>
+        <p class="text-gray-600 mb-6">
+            Applying just registers your account for affiliate access - a normal account doesn't have this by default.
+            We'll review it and let you know.
+        </p>
+        <form method="post">
+            {% csrf_token %}
+            <button type="submit"
+                    class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-6 py-3 rounded-lg transition">
+                Apply Now
+            </button>
+        </form>
+    </div>
+
 </div>
 {% endblock %}

@@ -41,7 +41,12 @@ def _track_recently_viewed(request, product):
 
 def product_detail(request, slug):
     """Single product page - real 'Add to Cart' entry point."""
-    product = get_object_or_404(Product.active, slug=slug, is_active=True)
+    product = get_object_or_404(
+        Product.active.select_related("seller").prefetch_related(
+            "gallery_images", "color_variants", "size_variants"
+        ),
+        slug=slug, is_active=True,
+    )
     _track_recently_viewed(request, product)
 
     if request.method == "POST":

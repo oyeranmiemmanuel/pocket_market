@@ -1,45 +1,97 @@
 {% extends 'core/base.html' %}
+
 {% block title %}Bank Details | Top Tech{% endblock %}
+
 {% block content %}
-<div class="max-w-lg mx-auto px-4 py-12">
-    <h1 class="text-2xl font-bold text-gray-800 mb-6">Bank Details</h1>
+<div class="max-w-3xl mx-auto px-4 py-12">
+
+    <h1 class="text-3xl font-bold text-gray-800 mb-1">Bank Details</h1>
+    <p class="text-gray-500 mb-8">Used for payouts. Kept private, never shown to customers.</p>
+
+    {% include 'sellers/_nav.html' with active='bank' %}
 
     {% if messages %}
-        {% for message in messages %}
-            <p class="p-3 rounded-lg {% if message.tags == 'error' %}bg-red-50 text-red-700{% elif message.tags == 'warning' %}bg-amber-50 text-amber-700{% else %}bg-green-50 text-green-700{% endif %} text-sm mb-4">{{ message }}</p>
-        {% endfor %}
-    {% endif %}
-
-    {% if profile.bank_account_name %}
-        <div class="bg-white rounded-xl shadow p-4 mb-6 text-sm">
-            <p class="text-gray-500">Currently on file</p>
-            <p class="font-semibold text-gray-800">{{ profile.bank_account_name }}</p>
-            <p class="text-gray-500">{{ profile.bank_name }} · {{ profile.bank_account_number }}</p>
+        <div class="mb-6 space-y-2">
+            {% for message in messages %}
+                <p class="p-3 rounded-lg bg-green-50 text-green-700 text-sm">{{ message }}</p>
+            {% endfor %}
         </div>
     {% endif %}
 
-    <form method="post" class="bg-white rounded-xl shadow p-6 space-y-4">
-        {% csrf_token %}
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Bank</label>
-            {{ form.bank_code.errors }}
-            <select name="bank_code" class="w-full border border-gray-300 rounded-lg px-3 py-2">
-                <option value="">Select your bank</option>
-                {% for bank in banks %}
-                    <option value="{{ bank.code }}" {% if form.bank_code.value == bank.code %}selected{% endif %}>{{ bank.name }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Account Number</label>
-            {{ form.bank_account_number.errors }}
-            <input type="text" name="bank_account_number" value="{{ form.bank_account_number.value|default:'' }}"
-                   class="w-full border border-gray-300 rounded-lg px-3 py-2" maxlength="10">
-        </div>
-        <p class="text-xs text-gray-400">We verify this account with Paystack before saving - the account name is filled in automatically, never typed by hand.</p>
-        <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-lg transition">
-            Verify &amp; Save
+    {% if profile.bank_account_number %}
+    <div id="bank-summary" class="bg-white rounded-xl shadow p-6 sm:p-8 max-w-lg">
+        <p class="text-xs font-semibold text-gray-400 uppercase mb-1">On file</p>
+        <p class="text-gray-800 font-medium">{{ profile.bank_name }}</p>
+        <p class="text-gray-500 text-sm mt-1">
+            {{ profile.bank_account_name }} - •••• {{ profile.bank_account_number|slice:"-4:" }}
+        </p>
+        <button type="button" onclick="toggleBankEdit()"
+                class="mt-4 text-indigo-600 text-sm font-semibold hover:underline">
+            Edit Bank Details
         </button>
-    </form>
+    </div>
+    {% endif %}
+
+    <div id="bank-form" class="bg-white rounded-xl shadow p-6 sm:p-8 max-w-lg {% if profile.bank_account_number %}hidden mt-4{% endif %}">
+        <form method="post" class="space-y-5">
+            {% csrf_token %}
+
+            <div>
+                <label for="{{ form.bank_name.id_for_label }}" class="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Bank name</label>
+                {{ form.bank_name.errors }}
+                {{ form.bank_name }}
+            </div>
+
+            <div>
+                <label for="{{ form.bank_account_number.id_for_label }}" class="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Account number</label>
+                {{ form.bank_account_number.errors }}
+                {{ form.bank_account_number }}
+            </div>
+
+            <div>
+                <label for="{{ form.bank_account_name.id_for_label }}" class="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Account name</label>
+                {{ form.bank_account_name.errors }}
+                {{ form.bank_account_name }}
+            </div>
+
+            <div class="flex items-center gap-3">
+                <button type="submit"
+                        class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-6 py-3 rounded-lg transition">
+                    Save
+                </button>
+                {% if profile.bank_account_number %}
+                <button type="button" onclick="toggleBankEdit()"
+                        class="text-gray-500 text-sm font-semibold hover:underline">
+                    Cancel
+                </button>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+
 </div>
+
+<style>
+    form input[type="text"] {
+        width: 100%;
+        padding: 0.625rem 0.75rem;
+        border: 1px solid #d1d5db;
+        border-radius: 0.5rem;
+        font-size: 0.875rem;
+    }
+    .hidden { display: none; }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Bank details are masked by default (see the roadmap's "don't display
+    // sensitive bank info unnecessarily" rule) - the full editable form,
+    // which does contain the real account number, only becomes visible
+    // when the seller explicitly asks to edit it.
+    function toggleBankEdit() {
+        document.getElementById('bank-summary').classList.toggle('hidden');
+        document.getElementById('bank-form').classList.toggle('hidden');
+    }
+</script>
 {% endblock %}

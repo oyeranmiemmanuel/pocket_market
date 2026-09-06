@@ -7,6 +7,23 @@ from .models import CartItem
 from .services import cart_json_response, get_or_create_cart, is_ajax_request
 
 
+def _refresh_cart_items_cache(cart):
+    """
+    get_or_create_cart() commonly returns a Cart with `items` already
+    prefetched (used elsewhere, e.g. the nav cart popup). If we mutate
+    items on that same instance - delete one, add one, change a quantity -
+    Django does NOT automatically invalidate that prefetch cache. Any
+    later `cart.items.all()` call (e.g. inside cart_json_response) can
+    then silently serve the stale, pre-mutation list, which is what makes
+    a just-removed item appear to still be in the cart.
+
+    Clearing the cached prefetch here forces the next `cart.items.all()`
+    to hit the database again and reflect the mutation we just made.
+    """
+    if hasattr(cart, "_prefetched_objects_cache"):
+        cart._prefetched_objects_cache.pop("items", None)
+
+
 def cart_detail(request):
     cart = get_or_create_cart(request)
     return render(request, "cart/cart_detail.html", {"cart": cart})
@@ -25,6 +42,8 @@ def add_to_cart(request, product_id):
     if not created:
         item.quantity += 1
         item.save()
+
+    _refresh_cart_items_cache(cart)
 
     message = f"{product.name} added to cart."
 
@@ -53,6 +72,8 @@ def update_cart_item(request, item_id):
             item.save()
             message = "Cart updated."
 
+        _refresh_cart_items_cache(cart)
+
         if is_ajax_request(request):
             return cart_json_response(cart, message)
 
@@ -65,6 +86,8 @@ def remove_from_cart(request, item_id):
     cart = get_or_create_cart(request)
     item = get_object_or_404(CartItem, pk=item_id, cart=cart)
     item.delete()
+
+    _refresh_cart_items_cache(cart)
 
     if is_ajax_request(request):
         return cart_json_response(cart, "Item removed from cart.")

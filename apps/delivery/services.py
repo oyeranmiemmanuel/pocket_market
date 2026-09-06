@@ -5,10 +5,13 @@ advancing it through its method-specific stages.
 
 import datetime
 
+from django.urls import reverse
 from django.utils import timezone
 
 from apps.core.enums import DeliveryMethod, DeliveryStatus
 from apps.core.exceptions import ValidationFailedError
+from apps.notifications.models import NotificationCategory
+from apps.notifications.services import create_notification
 from apps.orders.models import Order, OrderStatus
 
 from .models import EXCEPTION_STAGES, Delivery, DeliveryUpdate
@@ -61,9 +64,38 @@ def advance_stage(delivery: Delivery, new_stage: str, note: str = "") -> Deliver
 
     DeliveryUpdate.objects.create(delivery=delivery, stage=new_stage, note=note)
 
-    if new_stage == DeliveryStatus.DELIVERED:
-        order = delivery.order
+    order = delivery.order
+    order_url = reverse("orders:order_detail", args=[order.reference])
+
+    # Maps delivery stages onto the three customer-facing lifecycle
+    # notifications the roadmap asks for (processing/shipped/delivered).
+    # SHIPPED and OUT_FOR_DELIVERY both count as "shipped" here because
+    # local delivery deliberately skips the SHIPPED stage entirely and
+    # goes straight to OUT_FOR_DELIVERY (see DeliveryStatus's docstring) -
+    # without this, a local-delivery customer would never get a
+    # "shipped" notification at all.
+    if new_stage == DeliveryStatus.PREPARING:
+        create_notification(
+            user=order.user,
+            category=NotificationCategory.ORDER_PROCESSING,
+            message=f"Your order {order.reference} is being processed.",
+            url=order_url,
+        )
+    elif new_stage in (DeliveryStatus.SHIPPED, DeliveryStatus.OUT_FOR_DELIVERY):
+        create_notification(
+            user=order.user,
+            category=NotificationCategory.ORDER_SHIPPED,
+            message=f"Your order {order.reference} is on its way.",
+            url=order_url,
+        )
+    elif new_stage == DeliveryStatus.DELIVERED:
         order.status = OrderStatus.DELIVERED
         order.save(update_fields=["status"])
+        create_notification(
+            user=order.user,
+            category=NotificationCategory.ORDER_DELIVERED,
+            message=f"Your order {order.reference} has been delivered.",
+            url=order_url,
+        )
 
     return delivery

@@ -122,6 +122,41 @@
 
                 {% if user.is_authenticated %}
 
+                    {% if user.seller_profile %}
+                        <a href="{% url 'sellers:dashboard' %}"
+                           class="border border-gray-300 text-gray-700 px-5 py-3 rounded-lg hover:bg-gray-50 transition">
+                            Sell
+                        </a>
+                    {% else %}
+                        <a href="{% url 'sellers:apply' %}"
+                           class="border border-gray-300 text-gray-700 px-5 py-3 rounded-lg hover:bg-gray-50 transition">
+                            Become a Seller
+                        </a>
+                    {% endif %}
+
+                    {% if user.affiliate_profile %}
+                        <a href="{% url 'affiliates:dashboard' %}"
+                           class="border border-gray-300 text-gray-700 px-5 py-3 rounded-lg hover:bg-gray-50 transition">
+                            Affiliate
+                        </a>
+                    {% else %}
+                        <a href="{% url 'affiliates:apply' %}"
+                           class="border border-gray-300 text-gray-700 px-5 py-3 rounded-lg hover:bg-gray-50 transition">
+                            Become an Affiliate
+                        </a>
+                    {% endif %}
+
+                    <a href="{% url 'notifications:list' %}"
+                       class="relative border border-gray-300 text-gray-700 px-4 py-3 rounded-lg hover:bg-gray-50 transition">
+                        <i class="fa-regular fa-bell"></i>
+                        {% if unread_notification_count %}
+                            <span class="absolute -top-1.5 -right-1.5 bg-red-600 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                                {{ unread_notification_count }}
+                            </span>
+                        {% endif %}
+                    </a>
+
+
                     <form action="{% url 'accounts:logout' %}" method="post" class="inline">
                         {% csrf_token %}
                         <button type="submit"
@@ -221,6 +256,49 @@
     <div class="mt-auto border-t p-6 space-y-3">
 
         {% if user.is_authenticated %}
+
+            {% if user.seller_profile %}
+                <a href="{% url 'sellers:dashboard' %}"
+                   class="block w-full text-center border border-gray-300 text-gray-700 py-3 rounded-lg hover:bg-gray-50 transition"
+                   onclick="closeNav()">
+                    Sell
+                </a>
+            {% else %}
+                <a href="{% url 'sellers:apply' %}"
+                   class="block w-full text-center border border-gray-300 text-gray-700 py-3 rounded-lg hover:bg-gray-50 transition"
+                   onclick="closeNav()">
+                    Become a Seller
+                </a>
+            {% endif %}
+
+            {% if user.affiliate_profile %}
+                <a href="{% url 'affiliates:dashboard' %}"
+                   class="block w-full text-center border border-gray-300 text-gray-700 py-3 rounded-lg hover:bg-gray-50 transition"
+                   onclick="closeNav()">
+                    Affiliate
+                </a>
+            {% else %}
+                <a href="{% url 'affiliates:apply' %}"
+                   class="block w-full text-center border border-gray-300 text-gray-700 py-3 rounded-lg hover:bg-gray-50 transition"
+                   onclick="closeNav()">
+                    Become an Affiliate
+                </a>
+            {% endif %}
+
+            <a href="{% url 'notifications:list' %}"
+               class="block w-full text-center border border-gray-300 text-gray-700 py-3 rounded-lg hover:bg-gray-50 transition"
+               onclick="closeNav()">
+                <i class="fa-regular fa-bell mr-1"></i> Notifications
+                {% if unread_notification_count %}
+                    <span class="ml-1 bg-red-600 text-white text-xs font-bold px-1.5 py-0.5 rounded-full">{{ unread_notification_count }}</span>
+                {% endif %}
+            </a>
+
+            <a href="{% url 'accounts:profile' %}"
+               class="block w-full text-center border border-gray-300 text-gray-700 py-3 rounded-lg hover:bg-gray-50 transition"
+               onclick="closeNav()">
+                My Account
+            </a>
 
             <form action="{% url 'accounts:logout' %}" method="post">
                 {% csrf_token %}
@@ -900,6 +978,54 @@ function closeNav() {
             });
     });
 })();
+</script>
+
+<script>
+    // Sitewide loading-state protection: disables a form's submit button
+    // and swaps its text the moment it's submitted, so a slow connection
+    // or an eager double-click can't fire the same checkout/application/
+    // product-save request twice. Applies to every plain form on the
+    // site automatically - no need to wire this into each template.
+    //
+    // Forms already handled via fetch (e.g. cart's Update Cart / Remove
+    // buttons) aren't affected the same way since those don't rely on a
+    // native form submission to navigate away, but this listener firing
+    // alongside them is harmless - it just disables the button too,
+    // which is the correct behavior while a request is in flight anyway.
+    //
+    // Opt out for a specific form with data-no-loading-state="true".
+    document.addEventListener('submit', function (e) {
+        const form = e.target;
+        if (!form || form.dataset.noLoadingState === 'true') return;
+
+        const submitBtn = form.querySelector('button[type="submit"], input[type="submit"]');
+        if (!submitBtn || submitBtn.disabled) return;
+
+        const originalText = submitBtn.tagName === 'INPUT' ? submitBtn.value : submitBtn.textContent;
+        submitBtn.dataset.originalText = originalText;
+        submitBtn.disabled = true;
+
+        const waitingText = 'Please wait...';
+        if (submitBtn.tagName === 'INPUT') {
+            submitBtn.value = waitingText;
+        } else {
+            submitBtn.textContent = waitingText;
+        }
+
+        // Safety net: if the page never navigates away (validation error
+        // re-render, network failure, etc.) a normal full-page reload
+        // resets this naturally - but re-enable after a timeout too, in
+        // case something keeps the current page up without reloading.
+        setTimeout(function () {
+            if (!submitBtn.isConnected) return;
+            submitBtn.disabled = false;
+            if (submitBtn.tagName === 'INPUT') {
+                submitBtn.value = submitBtn.dataset.originalText;
+            } else {
+                submitBtn.textContent = submitBtn.dataset.originalText;
+            }
+        }, 10000);
+    });
 </script>
 
 {% block extra_js %}

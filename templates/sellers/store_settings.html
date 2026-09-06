@@ -1,0 +1,77 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Store Settings | Top Tech{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 py-12">
+
+    <h1 class="text-3xl font-bold text-gray-800 mb-1">{{ profile.store_name }}</h1>
+    <p class="text-gray-500 mb-8">Seller Dashboard</p>
+
+    {% include 'sellers/_nav.html' with active='store_settings' %}
+
+    {% if messages %}
+        <div class="mb-6 space-y-2">
+            {% for message in messages %}
+                <p class="p-3 rounded-lg bg-green-50 text-green-700 text-sm">{{ message }}</p>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <div class="bg-white rounded-xl shadow p-6 sm:p-8 max-w-lg">
+        <form method="post" enctype="multipart/form-data" class="space-y-5">
+            {% csrf_token %}
+
+            <div>
+                <label for="{{ form.store_name.id_for_label }}" class="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Store name</label>
+                {{ form.store_name.errors }}
+                {{ form.store_name }}
+            </div>
+
+            <div>
+                <label for="{{ form.store_description.id_for_label }}" class="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Description</label>
+                {{ form.store_description.errors }}
+                {{ form.store_description }}
+            </div>
+
+            <div>
+                <label for="{{ form.logo.id_for_label }}" class="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Logo</label>
+                {% if profile.logo %}
+                    <div class="w-16 h-16 bg-gray-100 rounded-full overflow-hidden mb-2">
+                        <img src="{{ profile.logo.url }}" alt="Logo" class="w-full h-full object-cover">
+                    </div>
+                {% endif %}
+                {{ form.logo.errors }}
+                {{ form.logo }}
+            </div>
+
+            <div>
+                <label for="{{ form.banner.id_for_label }}" class="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Banner</label>
+                {% if profile.banner %}
+                    <div class="w-full h-24 bg-gray-100 rounded-lg overflow-hidden mb-2">
+                        <img src="{{ profile.banner.url }}" alt="Banner" class="w-full h-full object-cover">
+                    </div>
+                {% endif %}
+                {{ form.banner.errors }}
+                {{ form.banner }}
+            </div>
+
+            <button type="submit"
+                    class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-6 py-3 rounded-lg transition">
+                Save
+            </button>
+        </form>
+    </div>
+
+</div>
+
+<style>
+    form input[type="text"], form textarea {
+        width: 100%;
+        padding: 0.625rem 0.75rem;
+        border: 1px solid #d1d5db;
+        border-radius: 0.5rem;
+        font-size: 0.875rem;
+    }
+</style>
+{% endblock %}

@@ -1,5 +1,7 @@
 from django.contrib import admin
 
+from apps.core.admin_badges import status_badge
+
 from .models import Delivery, DeliveryUpdate
 from .services import advance_stage
 
@@ -14,11 +16,16 @@ class DeliveryUpdateInline(admin.TabularInline):
 
 @admin.register(Delivery)
 class DeliveryAdmin(admin.ModelAdmin):
-    list_display = ["order", "method", "current_stage", "estimated_delivery_date"]
+    list_display = ["order", "method", "stage_display", "estimated_delivery_date"]
     list_filter = ["method", "current_stage"]
     search_fields = ["order__reference", "tracking_number", "courier_name"]
     inlines = [DeliveryUpdateInline]
     readonly_fields = ["order", "method"]
+    list_per_page = 25
+
+    @admin.display(description="Stage", ordering="current_stage")
+    def stage_display(self, obj):
+        return status_badge(obj.get_current_stage_display(), obj.current_stage)
 
     def save_model(self, request, obj, form, change):
         """

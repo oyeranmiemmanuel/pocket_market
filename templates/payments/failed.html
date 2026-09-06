@@ -1,23 +1,20 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Payment Failed</title>
-    <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #f4f6f8; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
-        .card { background: white; border-radius: 12px; padding: 40px; max-width: 420px; width: 100%; box-shadow: 0 5px 20px rgba(0,0,0,0.08); text-align: center; }
-        h1 { color: #2c3e50; margin-bottom: 10px; font-size: 24px; }
-        p { color: #666; }
-        a.btn { display:inline-block; margin-top: 20px; padding: 12px 24px; background: #4f46e5; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; }
-        a.btn:hover { background: #4338ca; }
-    </style>
-</head>
-<body>
-<div class="card">
-    <h1>Payment Failed ❌</h1>
-    <p>We couldn't confirm payment for order <strong>{{ order.reference }}</strong>.</p>
-    <p>Please try again or contact support if you were charged.</p>
-    <a class="btn" href="{% url 'orders:order_detail' order.reference %}">Back to order</a>
+{% extends 'core/base.html' %}
+
+{% block title %}Payment Failed | Top Tech{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto px-4 py-24">
+    <div class="bg-white rounded-xl shadow p-10 text-center">
+        <div class="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-5">
+            <i class="fa-solid fa-xmark text-3xl text-red-500"></i>
+        </div>
+        <h1 class="text-2xl font-bold text-gray-800 mb-2">Payment Failed</h1>
+        <p class="text-gray-500">We couldn't confirm payment for order <span class="font-semibold text-gray-800">{{ order.reference }}</span>.</p>
+        <p class="text-gray-500 mt-1">Please try again or contact support if you were charged.</p>
+        <a href="{% url 'orders:order_detail' order.reference %}"
+           class="inline-block mt-6 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-6 py-3 rounded-lg transition">
+            Back to order
+        </a>
+    </div>
 </div>
-</body>
-</html>
+{% endblock %}

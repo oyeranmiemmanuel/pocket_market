@@ -1,5 +1,6 @@
 from django.contrib import messages
 from django.contrib.auth import authenticate, get_user_model, login, logout
+from django.contrib.auth.decorators import login_required
 from django.core.mail import send_mail
 from django.conf import settings
 from django.shortcuts import redirect, render
@@ -10,7 +11,7 @@ from django.core.mail import EmailMultiAlternatives
 
 from apps.cart.services import merge_guest_cart_into_user
 
-from .forms import LoginForm, RegisterForm
+from .forms import LoginForm, ProfileForm, RegisterForm
 from .models import UserProfile
 from .tokens import email_verification_token
 
@@ -170,3 +171,25 @@ def logout_view(request):
     logout(request)
     messages.info(request, "You have been logged out.")
     return redirect('accounts:login')
+
+
+@login_required
+def profile_view(request):
+    """
+    Customer account page - view/edit the profile fields that live
+    alongside the User record (UserProfile: name, phone, country,
+    avatar, bio). Doesn't touch username/email/password - those stay
+    on their existing dedicated flows (register/login/password reset).
+    """
+    profile, _ = UserProfile.objects.get_or_create(user=request.user)
+
+    if request.method == 'POST':
+        form = ProfileForm(request.POST, request.FILES, instance=profile)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Profile updated.")
+            return redirect('accounts:profile')
+    else:
+        form = ProfileForm(instance=profile)
+
+    return render(request, 'accounts/profile.html', {'form': form, 'profile': profile})

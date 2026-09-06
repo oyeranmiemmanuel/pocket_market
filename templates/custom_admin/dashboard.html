@@ -3,44 +3,107 @@
 
 {% block content %}
 
-<div class="cards">
+<div class="stats-grid">
 
     <div class="card">
-        <h4>Total Users</h4>
+        <h3>Total Users</h3>
         <h2>{{ total_users }}</h2>
     </div>
 
     <div class="card">
-        <h4>Total Products</h4>
+        <h3>Total Products</h3>
         <h2>{{ total_products }}</h2>
     </div>
 
     <div class="card">
-        <h4>Total Orders</h4>
+        <h3>Total Orders</h3>
         <h2>{{ total_orders }}</h2>
     </div>
 
     <div class="card">
-        <h4>Revenue</h4>
+        <h3>Revenue</h3>
         <h2>₦{{ revenue }}</h2>
     </div>
-    
+
     <div class="card">
+        <h3>Failed Purchases</h3>
+        <h2>{{ failed_purchases }}</h2>
+    </div>
 
-    <h4>Failed Purchases</h4>
+    <div class="card">
+        <h3>Reviews</h3>
+        <h2>{{ total_reviews }}</h2>
+    </div>
 
-    <h2>{{ failed_purchases }}</h2>
+    <div class="card">
+        <h3>Contact Messages</h3>
+        <h2>{{ total_messages }}</h2>
+    </div>
+
+    <div class="card">
+        <h3>Notifications Sent</h3>
+        <h2>{{ total_notifications_sent }}</h2>
+    </div>
 
 </div>
+
+<h1>Needs Attention</h1>
+<div class="stats-grid">
+
+    <div class="card">
+        <h3>Seller Applications Pending</h3>
+        <h2>{{ pending_seller_applications }}</h2>
+        {% if pending_seller_applications %}
+            <a href="{% url 'admin:sellers_sellerprofile_changelist' %}?status__exact=pending" class="btn-small primary">Review</a>
+        {% endif %}
+    </div>
+
+    <div class="card">
+        <h3>Affiliate Applications Pending</h3>
+        <h2>{{ pending_affiliate_applications }}</h2>
+        {% if pending_affiliate_applications %}
+            <a href="{% url 'admin:affiliates_affiliateprofile_changelist' %}?status__exact=pending" class="btn-small primary">Review</a>
+        {% endif %}
+    </div>
+
+    <div class="card">
+        <h3>Seller Payouts Requested</h3>
+        <h2>{{ pending_seller_payouts }}</h2>
+        {% if pending_seller_payouts %}
+            <a href="{% url 'admin:sellers_payout_changelist' %}?status__exact=requested" class="btn-small primary">Review</a>
+        {% endif %}
+    </div>
+
+    <div class="card">
+        <h3>Affiliate Payouts Requested</h3>
+        <h2>{{ pending_affiliate_payouts }}</h2>
+        {% if pending_affiliate_payouts %}
+            <a href="{% url 'admin:affiliates_affiliatepayout_changelist' %}?status__exact=requested" class="btn-small primary">Review</a>
+        {% endif %}
+    </div>
+
+</div>
+
+<h1>Marketplace</h1>
+<div class="stats-grid">
+
+    <div class="card">
+        <h3>Total Sellers</h3>
+        <h2>{{ total_sellers }}</h2>
+    </div>
+
+    <div class="card">
+        <h3>Total Affiliates</h3>
+        <h2>{{ total_affiliates }}</h2>
+    </div>
+
 </div>
 
 <div class="table-container">
 
-<h3>Recent Orders</h3>
+<h1>Recent Orders</h1>
 
-<br>
-
-<table>
+<table class="admin-table">
     <tr>
         <th>Reference</th>
         <th>Customer</th>
@@ -52,15 +115,79 @@
     <tr>
         <td>{{ order.reference }}</td>
         <td>{{ order.full_name }}</td>
-        <td>₦{{ order.amount }}</td>
+        <td>₦{{ order.total }}</td>
 
         <td>
-            {% if order.status == 'paid' %}
-            <span class="badge-paid">Paid</span>
+            {% if order.status == 'pending' %}
+                <span class="status-badge pending">{{ order.get_status_display }}</span>
+            {% elif order.status == 'paid' %}
+                <span class="status-badge info">{{ order.get_status_display }}</span>
+            {% elif order.status == 'shipped' %}
+                <span class="status-badge primary">{{ order.get_status_display }}</span>
+            {% elif order.status == 'delivered' %}
+                <span class="status-badge success">{{ order.get_status_display }}</span>
             {% else %}
-            <span class="badge-pending">
-                {{ order.status }}
-            </span>
+                <span class="status-badge danger">{{ order.get_status_display }}</span>
+            {% endif %}
+        </td>
+    </tr>
+    {% endfor %}
+
+</table>
+
+</div>
+
+<div class="table-container">
+
+<h1>Recent Products</h1>
+
+<table class="admin-table">
+    <tr>
+        <th>Name</th>
+        <th>Category</th>
+        <th>Price</th>
+        <th>Status</th>
+    </tr>
+
+    {% for product in recent_products %}
+    <tr>
+        <td>{{ product.name }}</td>
+        <td>{{ product.category.name|default:"-" }}</td>
+        <td>₦{{ product.price }}</td>
+        <td>
+            {% if product.is_active %}
+                <span class="status-badge success">Active</span>
+            {% else %}
+                <span class="status-badge pending">Inactive</span>
+            {% endif %}
+        </td>
+    </tr>
+    {% endfor %}
+
+</table>
+
+</div>
+
+<div class="table-container">
+
+<h1>Recent Messages</h1>
+
+<table class="admin-table">
+    <tr>
+        <th>From</th>
+        <th>Subject</th>
+        <th>Status</th>
+    </tr>
+
+    {% for msg in recent_messages %}
+    <tr>
+        <td>{{ msg.name }} ({{ msg.email }})</td>
+        <td>{{ msg.subject }}</td>
+        <td>
+            {% if msg.is_read %}
+                <span class="status-badge success">Read</span>
+            {% else %}
+                <span class="status-badge pending">Unread</span>
             {% endif %}
         </td>
     </tr>

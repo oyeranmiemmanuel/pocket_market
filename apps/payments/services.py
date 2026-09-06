@@ -12,12 +12,15 @@ from django.core.cache import cache
 import requests
 from django.conf import settings
 from django.db import transaction
+from django.urls import reverse
 from django.utils import timezone
 from apps.ledger.services import process_order_financials
 from apps.cart.services import get_or_create_cart
 from apps.core.exceptions import ValidationFailedError
 from apps.core.utils import generate_reference
 from apps.delivery.services import create_delivery
+from apps.notifications.models import NotificationCategory
+from apps.notifications.services import create_notification, notify_sellers_of_new_order
 from apps.orders.models import Order, OrderStatus
 
 from .models import Payment, PaymentStatus
@@ -218,6 +221,17 @@ def _finalize_successful_payment(payment: Payment):
         cart = getattr(order.user, "cart", None)
         if cart is not None:
             cart.items.all().hard_delete()
+
+    # Inside the idempotency guard at the top of this function, so these
+    # fire exactly once per order even though the callback and webhook
+    # can both call this for the same payment.
+    create_notification(
+        user=order.user,
+        category=NotificationCategory.PAYMENT_SUCCESSFUL,
+        message=f"Payment received for order {order.reference}.",
+        url=reverse("orders:order_detail", args=[order.reference]),
+    )
+    notify_sellers_of_new_order(order)
 
 
 def verify_payment(reference: str) -> tuple[Payment, bool]:

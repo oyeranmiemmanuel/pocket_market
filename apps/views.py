@@ -14,10 +14,19 @@ from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes, force_str
 from django.urls import reverse
 from django.db import models
-from django.shortcuts import render
-from django.conf import settings
-from .models import Order, ContactMessage
-from apps.catalog.models import Product
+from django.db.models import Sum
+from .models import Order
+from apps.catalog.models import Product, Review
+
+# NEW-architecture models, used only by admin_dashboard below. `Order`
+# above (from .models, the legacy monolith) is still the real model
+# behind admin_orders/orders.html elsewhere in this file - not touched
+# here, since that's a separate page with its own legacy-only fields
+# (amount, verified, purchase_completed). Aliased to avoid shadowing it.
+from apps.orders.models import Order as RealOrder, OrderStatus
+from apps.sellers.models import SellerProfile, SellerStatus
+from apps.affiliates.models import AffiliateProfile, AffiliateStatus
+from apps.notifications.models import Notification
 from .forms import MessageForm
 
 User = get_user_model()
@@ -231,23 +240,51 @@ def admin_dashboard(request):
 
     total_users = User.objects.count()
     total_products = Product.objects.count()
-    total_orders = Order.objects.count()
     total_messages = ContactMessage.objects.count()
 
-    revenue = Order.objects.filter(
-        verified=True,
-        status='paid'
-    ).aggregate(total=models.Sum('amount'))['total'] or 0
-    
+    # Real orders/revenue - RealOrder is apps.orders.models.Order, the
+    # actual order system built out through this project (multi-item,
+    # multi-seller, real checkout/payment flow). The legacy `Order`
+    # model imported above (from .models) predates that and is only
+    # still used by the separate admin_orders page below - not
+    # touched here, to avoid breaking that page.
+    total_orders = RealOrder.objects.count()
 
-    failed_purchases = Order.objects.filter(
-    verified=True,
-    purchase_completed=False
-).count()
-    
-    recent_orders = Order.objects.order_by('-created_at')[:10]
+    revenue = RealOrder.objects.filter(
+        status__in=[OrderStatus.PAID, OrderStatus.SHIPPED, OrderStatus.DELIVERED]
+    ).aggregate(total=Sum('total'))['total'] or 0
+
+    failed_purchases = RealOrder.objects.filter(status=OrderStatus.FAILED).count()
+
+    recent_orders = RealOrder.objects.order_by('-created_at')[:10]
     recent_products = Product.objects.order_by('-created_at')[:10]
     recent_messages = ContactMessage.objects.order_by('-created_at')[:10]
+
+    # Marketplace/affiliate subsystems - none of this existed the last
+    # time this dashboard was touched. Surfacing "needs attention" counts
+    # (pending applications, pending payouts) here since those are the
+    # things an admin actually needs to notice and act on; deeper
+    # management of each stays in Django admin (/admin/), which already
+    # has full search/filter/actions for all of these.
+    total_sellers = SellerProfile.objects.count()
+    pending_seller_applications = SellerProfile.objects.filter(status=SellerStatus.PENDING).count()
+    # pending_seller_payouts / pending_affiliate_payouts removed - the old
+    # Payout/AffiliatePayout models they read from no longer exist (replaced
+    # by the SellerEarning/AffiliateCommission ledger). Phase 9 (actual
+    # payout requests) hasn't been rebuilt against the ledger yet - see
+    # apps.sellers.views and apps.affiliates.views.
+
+    total_affiliates = AffiliateProfile.objects.count()
+    pending_affiliate_applications = AffiliateProfile.objects.filter(status=AffiliateStatus.PENDING).count()
+
+    total_reviews = Review.objects.count()
+
+    # Notifications app - didn't exist the last time this dashboard was
+    # touched. Just a raw count, not a "needs attention" item like the
+    # pending applications/payouts above - there's nothing for an admin
+    # to action here, it's purely informational (confirms the
+    # notification pipeline is actually firing).
+    total_notifications_sent = Notification.objects.count()
 
     context = {
         'title': 'Admin Dashboard',
@@ -260,13 +297,18 @@ def admin_dashboard(request):
         'recent_orders': recent_orders,
         'recent_products': recent_products,
         'recent_messages': recent_messages,
+        'total_sellers': total_sellers,
+        'pending_seller_applications': pending_seller_applications,
+        'total_affiliates': total_affiliates,
+        'pending_affiliate_applications': pending_affiliate_applications,
+        'total_reviews': total_reviews,
+        'total_notifications_sent': total_notifications_sent,
     }
-    
+
     return render(
         request,
         'custom_admin/dashboard.html',
         context
-        
     )
 
 

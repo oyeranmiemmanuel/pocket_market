@@ -33,6 +33,20 @@ class DeliveryMethod(models.TextChoices):
     LOCAL_DELIVERY = "local_delivery", "Local Delivery"
 
 
+class PayoutStatus(models.TextChoices):
+    """
+    Shared by SellerPayout and AffiliatePayout (Phase 9, spec sections
+    19/20) - both payout flows are structurally identical, so they share
+    one status set rather than duplicating it per app.
+    """
+
+    PENDING = "pending", "Pending"
+    PROCESSING = "processing", "Processing"
+    PAID = "paid", "Paid"
+    FAILED = "failed", "Failed"
+    CANCELLED = "cancelled", "Cancelled"
+
+
 class FulfillmentStatus(models.TextChoices):
     """
     Per-OrderItem fulfillment state, owned by whichever seller sold that
@@ -73,18 +87,9 @@ class DeliveryStatus(models.TextChoices):
     FAILED_DELIVERY = "failed_delivery", "Delivery Failed"
     CANCELLED = "cancelled", "Cancelled"
 
-
-class PayoutStatus(models.TextChoices):
-    """
-    Shared state machine for SellerPayout and AffiliatePayout (spec
-    sections 19/20 — both payout systems behave identically). A payout
-    is never marked PAID until the transfer has actually gone out — see
-    apps.sellers.services.mark_seller_payout_paid /
-    apps.affiliates.services.mark_affiliate_payout_paid.
-    """
-
-    PENDING = "pending", "Pending"
+class RefundStatus(models.TextChoices):
+    REQUESTED = "requested", "Requested"
+    REJECTED = "rejected", "Rejected"
     PROCESSING = "processing", "Processing"
-    PAID = "paid", "Paid"
+    PROCESSED = "processed", "Processed"
     FAILED = "failed", "Failed"
-    CANCELLED = "cancelled", "Cancelled"

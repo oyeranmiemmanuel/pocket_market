@@ -1,0 +1,28 @@
+{# Shared tab bar for the affiliate dashboard area. #}
+<div class="flex gap-1 overflow-x-auto mb-8 border-b border-gray-200">
+    <a href="{% url 'affiliates:dashboard' %}"
+       class="whitespace-nowrap px-4 py-3 text-sm font-semibold border-b-2 transition
+              {% if active == 'overview' %}border-indigo-600 text-indigo-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
+        Overview
+    </a>
+    <a href="{% url 'affiliates:my_links' %}"
+       class="whitespace-nowrap px-4 py-3 text-sm font-semibold border-b-2 transition
+              {% if active == 'links' %}border-indigo-600 text-indigo-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
+        Affiliate Links
+    </a>
+    <a href="{% url 'affiliates:my_conversions' %}"
+       class="whitespace-nowrap px-4 py-3 text-sm font-semibold border-b-2 transition
+              {% if active == 'conversions' %}border-indigo-600 text-indigo-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
+        Conversions
+    </a>
+    <a href="{% url 'affiliates:payouts' %}"
+       class="whitespace-nowrap px-4 py-3 text-sm font-semibold border-b-2 transition
+              {% if active == 'payouts' %}border-indigo-600 text-indigo-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
+        Payouts
+    </a>
+    <a href="{% url 'affiliates:bank_details' %}"
+       class="whitespace-nowrap px-4 py-3 text-sm font-semibold border-b-2 transition
+              {% if active == 'settings' %}border-indigo-600 text-indigo-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
+        Settings
+    </a>
+</div>

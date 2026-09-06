@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 
 from apps.core.models import BaseModel
@@ -130,3 +131,100 @@ class Product(BaseModel):
         if not self.slug:
             self.slug = unique_slugify(self, self.name)
         super().save(*args, **kwargs)
+
+
+class ProductImage(BaseModel):
+    """
+    Extra gallery images for a product, on top of Product.image (which
+    stays as the primary/thumbnail image used in listings). A product
+    can have up to MAX_IMAGES of these - enforced in the seller product
+    form, not at the database level, so existing data is never at risk
+    of violating a hard constraint.
+    """
+
+    MAX_IMAGES = 8
+
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.CASCADE,
+        related_name="gallery_images",
+    )
+
+    image = models.ImageField(upload_to="products/gallery/")
+
+    alt_text = models.CharField(max_length=200, blank=True)
+
+    display_order = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ["display_order", "created_at"]
+
+    def __str__(self):
+        return f"Image for {self.product.name}"
+
+
+class ProductColorVariant(BaseModel):
+    """
+    A selectable color option shown on the product detail page.
+
+    Presentational only for now: selecting a color doesn't change price,
+    doesn't have its own stock count, and isn't recorded on the cart/order
+    (CartItem/OrderItem still reference Product directly, not a variant).
+    Wiring color/size into actual per-variant stock and order history is a
+    larger change across cart+orders and is intentionally out of scope
+    here - see conversation notes.
+    """
+
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.CASCADE,
+        related_name="color_variants",
+    )
+
+    name = models.CharField(max_length=50)
+
+    hex_code = models.CharField(
+        max_length=7,
+        blank=True,
+        help_text="e.g. #1D4ED8 - used to render the swatch color.",
+    )
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self):
+        return f"{self.name} ({self.product.name})"
+
+
+class ProductSizeVariant(BaseModel):
+    """
+    A selectable size option shown on the product detail page.
+    Presentational only - see ProductColorVariant docstring.
+    """
+
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.CASCADE,
+        related_name="size_variants",
+    )
+
+    label = models.CharField(max_length=20)
+
+    class Meta:
+        ordering = ["id"]
+
+    def __str__(self):
+        return f"{self.label} ({self.product.name})"
+
+
+class Review(BaseModel):
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='reviews')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='reviews')
+    rating = models.PositiveSmallIntegerField()
+    comment = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.product} - {self.rating}★"

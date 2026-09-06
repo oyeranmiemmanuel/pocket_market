@@ -1,0 +1,10 @@
+{% extends "admin/index.html" %}
+
+{% block content %}
+<div class="module" style="margin-bottom: 20px; padding: 15px;">
+    <a href="{% url 'admin:platform_analytics' %}" style="font-weight: bold;">
+        View Platform Analytics &rarr;
+    </a>
+</div>
+{{ block.super }}
+{% endblock %}

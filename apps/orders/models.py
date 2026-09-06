@@ -180,3 +180,43 @@ class ShippingAddress(BaseModel):
 
     def __str__(self):
         return f"{self.address_line1}, {self.city}"
+
+from apps.core.enums import RefundStatus
+
+
+class Refund(BaseModel):
+    """
+    A customer's request to refund one line item of their own paid
+    order. Approving a refund (apps.orders.services.refunds.approve_refund)
+    is what actually triggers the Paystack refund call - there's no
+    separate "approved but not yet sent" state.
+    """
+
+    order_item = models.ForeignKey(OrderItem, on_delete=models.PROTECT, related_name="refunds")
+
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name="refund_requests",
+    )
+
+    reason = models.TextField()
+
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+
+    status = models.CharField(max_length=20, choices=RefundStatus.choices, default=RefundStatus.REQUESTED)
+
+    admin_notes = models.CharField(max_length=255, blank=True)
+
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="refund_reviews",
+    )
+
+    provider_reference = models.CharField(max_length=100, blank=True)
+
+    processed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "refunds"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Refund for {self.order_item.product_name} ({self.get_status_display()})"

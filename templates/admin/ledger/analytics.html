@@ -1,0 +1,87 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<div id="content-main">
+
+    <h2>Overview</h2>
+    <div class="module" style="padding: 15px; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px;">
+        <div><strong>Total Sales</strong><br>&#8358;{{ overview.total_sales }}</div>
+        <div><strong>Platform Revenue</strong><br>&#8358;{{ overview.platform_revenue }}</div>
+        <div><strong>Seller Earnings</strong><br>&#8358;{{ overview.seller_earnings }}</div>
+        <div><strong>Affiliate Commissions</strong><br>&#8358;{{ overview.affiliate_commissions }}</div>
+        <div><strong>Pending Seller Payouts</strong><br>&#8358;{{ overview.pending_seller_payouts }}</div>
+        <div><strong>Pending Affiliate Payouts</strong><br>&#8358;{{ overview.pending_affiliate_payouts }}</div>
+        <div><strong>Refunds</strong><br>&#8358;{{ overview.refunds }}</div>
+        <div><strong>Sellers</strong><br>{{ overview.num_sellers }}</div>
+        <div><strong>Affiliates</strong><br>{{ overview.num_affiliates }}</div>
+        <div><strong>Orders</strong><br>{{ overview.num_orders }}</div>
+    </div>
+
+    <h2>Affiliate Analytics</h2>
+    <p>Overall conversion rate: <strong>{{ overall_conversion_rate }}%</strong> ({{ total_clicks }} total clicks)</p>
+
+    <div class="module">
+        <h3>Top Affiliates</h3>
+        <table>
+            <thead><tr><th>Affiliate</th><th>Total Commission</th></tr></thead>
+            <tbody>
+                {% for affiliate in top_affiliates %}
+                <tr><td>{{ affiliate.affiliate_code }}</td><td>&#8358;{{ affiliate.total_commission }}</td></tr>
+                {% empty %}<tr><td colspan="2">No data yet.</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="module">
+        <h3>Most Clicked Products</h3>
+        <table>
+            <thead><tr><th>Product</th><th>Clicks</th></tr></thead>
+            <tbody>
+                {% for row in most_clicked_products %}
+                <tr><td>{{ row.product__name }}</td><td>{{ row.clicks }}</td></tr>
+                {% empty %}<tr><td colspan="2">No data yet.</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="module">
+        <h3>Most Converted Products</h3>
+        <table>
+            <thead><tr><th>Product</th><th>Conversions</th></tr></thead>
+            <tbody>
+                {% for row in most_converted_products %}
+                <tr><td>{{ row.order_item__product__name }}</td><td>{{ row.conversions }}</td></tr>
+                {% empty %}<tr><td colspan="2">No data yet.</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <h2>Seller Analytics</h2>
+    <div class="module">
+        <h3>Top Sellers</h3>
+        <table>
+            <thead><tr><th>Store</th><th>Total Sales</th></tr></thead>
+            <tbody>
+                {% for seller in top_sellers %}
+                <tr><td>{{ seller.store_name }}</td><td>&#8358;{{ seller.total_sold }}</td></tr>
+                {% empty %}<tr><td colspan="2">No data yet.</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="module">
+        <h3>Top Products</h3>
+        <table>
+            <thead><tr><th>Product</th><th>Units Sold</th><th>Revenue</th></tr></thead>
+            <tbody>
+                {% for row in top_products %}
+                <tr><td>{{ row.product__name }}</td><td>{{ row.units_sold }}</td><td>&#8358;{{ row.revenue }}</td></tr>
+                {% empty %}<tr><td colspan="3">No data yet.</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <p>Order volume (total line items sold): <strong>{{ order_volume }}</strong></p>
+
+</div>
+{% endblock %}

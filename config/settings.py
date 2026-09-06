@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from decimal import Decimal
+
 from dotenv import load_dotenv
 
 """
@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     "apps.delivery.apps.DeliveryConfig",
     "apps.sellers.apps.SellersConfig",
     "apps.affiliates.apps.AffiliatesConfig",
+    "apps.notifications.apps.NotificationsConfig",
     "apps.ledger.apps.LedgerConfig",
 ]
 
@@ -182,7 +183,7 @@ AFFILIATE_ATTRIBUTION_WINDOW_DAYS = int(
     os.environ.get("AFFILIATE_ATTRIBUTION_WINDOW_DAYS", "30")
 )
 
-# Phase 9 - seller/affiliate payouts. Configurable minimum withdrawal
-# amounts (spec section 21: "Do not hard-code them into templates").
-MINIMUM_SELLER_WITHDRAWAL = Decimal(os.environ.get("MINIMUM_SELLER_WITHDRAWAL", "10000"))
-MINIMUM_AFFILIATE_WITHDRAWAL = Decimal(os.environ.get("MINIMUM_AFFILIATE_WITHDRAWAL", "5000"))
+# Phase 9 - seller/affiliate payouts (spec sections 19/20). Configurable
+# per spec's own pattern above rather than hard-coded in services.py.
+MINIMUM_SELLER_WITHDRAWAL = os.environ.get("MINIMUM_SELLER_WITHDRAWAL", "1000")
+MINIMUM_AFFILIATE_WITHDRAWAL = os.environ.get("MINIMUM_AFFILIATE_WITHDRAWAL", "1000")

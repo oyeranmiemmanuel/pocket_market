@@ -6,9 +6,7 @@ recording once a sale can be attributed to a click.
 
 from datetime import timedelta
 from decimal import Decimal
-from django.conf import settings
 
-from apps.core.enums import PayoutStatus
 from django.conf import settings
 from django.core import signing
 from django.db import transaction
@@ -33,6 +31,22 @@ from .models import (
     AffiliateStatus,
     CommissionStatus,
 )
+from apps.core.enums import PayoutStatus
+
+
+def resolve_affiliate_default_commission_rate(affiliate) -> Decimal:
+    """
+    AffiliateProfile.commission_rate -> platform default, with no product
+    in the picture. Renamed from the old `resolve_affiliate_commission_rate`
+    (now the real, per-product hierarchy function further down this file -
+    see its docstring) to stop the two from silently colliding under the
+    same name, which left this one dead code since Python just kept
+    whichever definition loaded last.
+    """
+    if affiliate.commission_rate is not None:
+        return affiliate.commission_rate
+    return Decimal(PLATFORM_AFFILIATE_COMMISSION_RATE_DEFAULT)
+
 def _generate_unique_affiliate_code() -> str:
     """AFF-XXXXXXXXXX, regenerated on the rare collision."""
     for _ in range(5):
@@ -475,19 +489,29 @@ def reverse_commission(*, commission, reason=""):
 
 # ---------------------------------------------------------------------------
 # Phase 9 - affiliate payouts (spec section 20). Mirrors
-# apps.sellers.services's seller-payout functions exactly.
+# apps.sellers.services' seller-payout functions exactly - see those
+# docstrings for the full reasoning; only the model/field names differ
+# (AffiliateCommission/commission_amount instead of SellerEarning/
+# earning_amount, and affiliate.commissions instead of seller.earnings).
 # ---------------------------------------------------------------------------
 
 @transaction.atomic
 def request_affiliate_payout(*, affiliate, amount):
-    """See apps.sellers.services.request_seller_payout - identical logic, affiliate side."""
+    """
+    An affiliate requests a payout of part or all of their withdrawable
+    balance. Reserves whichever AVAILABLE, not-yet-reserved commissions
+    (oldest first) cover at least `amount`, linking them to the new
+    AffiliatePayout via AffiliateCommission.payout. Commissions stay
+    AVAILABLE (not PAID) until the payout actually completes - see
+    mark_affiliate_payout_paid.
+    """
     if amount is None or amount <= 0:
         raise ValidationFailedError("Enter a valid amount to withdraw.")
 
     if not (affiliate.bank_name and affiliate.bank_account_number and affiliate.bank_account_name):
         raise ValidationFailedError("Add your bank details before requesting a payout.")
 
-    minimum = Decimal(settings.MINIMUM_AFFILIATE_WITHDRAWAL)
+    minimum = Decimal(getattr(settings, "MINIMUM_AFFILIATE_WITHDRAWAL", "1000"))
     if amount < minimum:
         raise ValidationFailedError(f"The minimum withdrawal amount is \u20a6{minimum}.")
 
@@ -512,6 +536,9 @@ def request_affiliate_payout(*, affiliate, amount):
         running_total += commission.commission_amount
 
     if running_total < amount:
+        # Balance moved between the check above and the row lock (e.g. a
+        # concurrent request racing this one) - fail safe rather than
+        # reserve short.
         raise ValidationFailedError("Your available balance changed - please try again.")
 
     payout = AffiliatePayout.objects.create(
@@ -519,7 +546,7 @@ def request_affiliate_payout(*, affiliate, amount):
         amount=running_total,
         reference=generate_reference("APO"),
         bank_name=affiliate.bank_name,
-        bank_code=affiliate.bank_code,       # <-- new line
+        bank_code=affiliate.bank_code,
         bank_account_number=affiliate.bank_account_number,
         bank_account_name=affiliate.bank_account_name,
         status=PayoutStatus.PENDING,
@@ -531,6 +558,7 @@ def request_affiliate_payout(*, affiliate, amount):
 
 
 def mark_affiliate_payout_processing(*, payout):
+    """PENDING -> PROCESSING - admin has kicked off the actual bank transfer."""
     payout.status = PayoutStatus.PROCESSING
     payout.save(update_fields=["status", "updated_at"])
     return payout
@@ -538,6 +566,12 @@ def mark_affiliate_payout_processing(*, payout):
 
 @transaction.atomic
 def mark_affiliate_payout_paid(*, payout):
+    """
+    -> PAID. The AffiliateCommission rows this payout reserved move from
+    AVAILABLE to PAID at the same moment, so an affiliate's earnings
+    history and payout history always agree about what's actually been
+    settled.
+    """
     payout.status = PayoutStatus.PAID
     payout.processed_at = timezone.now()
     payout.save(update_fields=["status", "processed_at", "updated_at"])
@@ -547,6 +581,10 @@ def mark_affiliate_payout_paid(*, payout):
 
 
 def mark_affiliate_payout_failed(*, payout, reason=""):
+    """
+    -> FAILED. Releases the reserved commissions back to the unreserved
+    AVAILABLE pool so the affiliate can request a payout again.
+    """
     payout.status = PayoutStatus.FAILED
     if reason:
         payout.notes = reason
@@ -556,6 +594,7 @@ def mark_affiliate_payout_failed(*, payout, reason=""):
 
 
 def cancel_affiliate_payout(*, payout, reason=""):
+    """PENDING/PROCESSING -> CANCELLED. Same release behaviour as a failure."""
     payout.status = PayoutStatus.CANCELLED
     if reason:
         payout.notes = reason
@@ -563,9 +602,17 @@ def cancel_affiliate_payout(*, payout, reason=""):
     payout.commissions.update(payout=None)
     return payout
 
+
 @transaction.atomic
 def send_affiliate_payout(*, payout):
-    """See apps.sellers.services.send_seller_payout - identical logic, affiliate side."""
+    """
+    Phase 10 - triggers the real Paystack transfer for a PENDING payout.
+    Mirrors apps.sellers.services.send_seller_payout - see that
+    docstring. NOTE: apps.payments.services.create_transfer_recipient /
+    initiate_transfer must exist for this to actually run; they weren't
+    part of what was pulled in for this fix, so this will raise
+    ImportError if called before those are built.
+    """
     from apps.payments.services import create_transfer_recipient, initiate_transfer
 
     if payout.status != PayoutStatus.PENDING:
@@ -587,4 +634,4 @@ def send_affiliate_payout(*, payout):
     payout.status = PayoutStatus.PROCESSING
     payout.provider_reference = response.get("transfer_code", "")
     payout.save(update_fields=["status", "provider_reference", "updated_at"])
-    return payout
+    return payouts

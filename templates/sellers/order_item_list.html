@@ -1,92 +1,101 @@
 {% extends 'core/base.html' %}
+
 {% block title %}My Orders | Top Tech{% endblock %}
+
 {% block content %}
-<div class="max-w-5xl mx-auto px-4 py-12">
-    <div class="mb-8">
-        <h1 class="text-3xl font-bold text-gray-800">My Orders</h1>
-        <p class="text-gray-500">Only items from your store are shown — never the rest of the customer's order.</p>
-    </div>
+<div class="max-w-6xl mx-auto px-4 py-12">
+
+    <h1 class="text-3xl font-bold text-gray-800 mb-1">{{ profile.store_name }}</h1>
+    <p class="text-gray-500 mb-8">Seller Dashboard</p>
+
+    {% include 'sellers/_nav.html' with active='orders' %}
 
     {% if messages %}
-        {% for message in messages %}
-            <p class="p-3 rounded-lg bg-green-50 text-green-700 text-sm mb-4">{{ message }}</p>
-        {% endfor %}
+        <div class="mb-6 space-y-2">
+            {% for message in messages %}
+                <p class="p-3 rounded-lg bg-green-50 text-green-700 text-sm">{{ message }}</p>
+            {% endfor %}
+        </div>
     {% endif %}
 
-    <div class="flex gap-2 mb-4 text-sm">
+    <div class="flex flex-wrap gap-2 mb-6">
         <a href="{% url 'sellers:order_item_list' %}"
-           class="px-3 py-1 rounded-full {% if not status_filter %}bg-indigo-600 text-white{% else %}bg-white text-gray-600{% endif %}">All</a>
+           class="px-3 py-1.5 rounded-full text-xs font-semibold {% if not status_filter %}bg-indigo-600 text-white{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">
+            All
+        </a>
         {% for value, label in status_choices %}
         <a href="?status={{ value }}"
-           class="px-3 py-1 rounded-full {% if status_filter == value %}bg-indigo-600 text-white{% else %}bg-white text-gray-600{% endif %}">{{ label }}</a>
+           class="px-3 py-1.5 rounded-full text-xs font-semibold {% if status_filter == value %}bg-indigo-600 text-white{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">
+            {{ label }}
+        </a>
         {% endfor %}
     </div>
 
+    {% if page_obj.object_list %}
     <div class="bg-white rounded-xl shadow overflow-hidden">
-        {% if page_obj.object_list %}
-        <table class="w-full text-sm text-left">
-            <thead class="bg-gray-50 text-gray-500 uppercase text-xs">
-                <tr>
-                    <th class="px-5 py-3">Order Ref</th>
-                    <th class="px-5 py-3">Customer</th>
-                    <th class="px-5 py-3">Product</th>
-                    <th class="px-5 py-3">Qty</th>
-                    <th class="px-5 py-3">Subtotal</th>
-                    <th class="px-5 py-3">Order Status</th>
-                    <th class="px-5 py-3">Fulfillment</th>
-                    <th class="px-5 py-3">Date</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-100">
-                {% for item in page_obj.object_list %}
-                <tr>
-                    <td class="px-5 py-3 font-medium text-gray-800">{{ item.order.reference }}</td>
-                    <td class="px-5 py-3 text-gray-600">
-                        {% if item.order.user %}{{ item.order.user.first_name }} {{ item.order.user.last_name|first }}.{% else %}Guest{% endif %}
-                    </td>
-                    <td class="px-5 py-3">{{ item.product_name }}</td>
-                    <td class="px-5 py-3">{{ item.quantity }}</td>
-                    <td class="px-5 py-3">₦{{ item.subtotal }}</td>
-                    <td class="px-5 py-3">
-                        <span class="px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-600">{{ item.order.get_status_display }}</span>
-                    </td>
-                    <td class="px-5 py-3">
-                        {% if item.order.is_paid %}
-                        <form method="post" action="{% url 'sellers:update_fulfillment_status' item.pk %}" class="flex items-center gap-2">
-                            {% csrf_token %}
-                            <select name="fulfillment_status" class="border border-gray-300 rounded px-2 py-1 text-xs">
-                                {% for value, label in status_choices %}
-                                    <option value="{{ value }}" {% if item.fulfillment_status == value %}selected{% endif %}>{{ label }}</option>
-                                {% endfor %}
-                            </select>
-                            <button type="submit" class="text-indigo-600 text-xs font-semibold hover:underline">Save</button>
-                        </form>
-                        {% else %}
-                        <span class="px-2 py-1 rounded-full text-xs bg-yellow-50 text-yellow-700">Awaiting payment</span>
-                        {% endif %}
-                    </td>
-                    <td class="px-5 py-3 text-gray-500">{{ item.created_at|date:"d M Y" }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        {% else %}
-        <div class="p-12 text-center text-gray-400">
-            No orders yet for your products.
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-left text-xs text-gray-400 uppercase border-b border-gray-100">
+                        <th class="px-5 py-4 font-semibold">Order</th>
+                        <th class="px-5 py-4 font-semibold">Product</th>
+                        <th class="px-5 py-4 font-semibold">Qty</th>
+                        <th class="px-5 py-4 font-semibold">Amount</th>
+                        <th class="px-5 py-4 font-semibold">Date</th>
+                        <th class="px-5 py-4 font-semibold">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    {% for item in page_obj.object_list %}
+                    <tr>
+                        <td class="px-5 py-4 text-gray-600">{{ item.order.reference }}</td>
+                        <td class="px-5 py-4 font-medium text-gray-800">{{ item.product_name }}</td>
+                        <td class="px-5 py-4 text-gray-600">{{ item.quantity }}</td>
+                        <td class="px-5 py-4 font-semibold text-gray-800">₦{{ item.subtotal }}</td>
+                        <td class="px-5 py-4 text-gray-500">{{ item.created_at|date:"M d, Y" }}</td>
+                        <td class="px-5 py-4">
+                            {% if item.order.is_paid %}
+                            <form method="post" action="{% url 'sellers:update_fulfillment_status' item.id %}" class="flex items-center gap-2">
+                                {% csrf_token %}
+                                <select name="fulfillment_status" onchange="this.form.submit()"
+                                        class="border border-gray-200 rounded-lg px-2 py-1.5 text-xs">
+                                    {% for value, label in status_choices %}
+                                        <option value="{{ value }}" {% if item.fulfillment_status == value %}selected{% endif %}>{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                                <noscript><button type="submit" class="text-xs text-indigo-600 font-semibold">Update</button></noscript>
+                            </form>
+                            {% else %}
+                            <span class="inline-block px-2.5 py-1 rounded-full text-xs font-semibold bg-yellow-50 text-yellow-700">
+                                Awaiting payment
+                            </span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
-        {% endif %}
     </div>
 
-    {% if page_obj.paginator.num_pages > 1 %}
-    <div class="flex justify-center gap-2 mt-6 text-sm">
+    {% if page_obj.has_other_pages %}
+    <div class="flex justify-center gap-2 mt-6">
         {% if page_obj.has_previous %}
-            <a href="?page={{ page_obj.previous_page_number }}" class="px-3 py-1 rounded bg-white shadow">Prev</a>
+            <a href="?page={{ page_obj.previous_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}" class="px-3 py-2 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-100">Previous</a>
         {% endif %}
-        <span class="px-3 py-1 text-gray-500">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+        <span class="px-3 py-2 text-sm text-gray-500">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
         {% if page_obj.has_next %}
-            <a href="?page={{ page_obj.next_page_number }}" class="px-3 py-1 rounded bg-white shadow">Next</a>
+            <a href="?page={{ page_obj.next_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}" class="px-3 py-2 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-100">Next</a>
         {% endif %}
     </div>
     {% endif %}
+
+    {% else %}
+    <div class="text-center py-20 text-gray-400 bg-white rounded-xl shadow">
+        <i class="fa-solid fa-receipt text-5xl mb-4"></i>
+        <p>No orders {% if status_filter %}with this status {% endif %}yet.</p>
+    </div>
+    {% endif %}
+
 </div>
 {% endblock %}

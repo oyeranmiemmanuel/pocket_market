@@ -1,0 +1,90 @@
+{% extends 'core/base.html' %}
+
+{% block title %}My Account | Top Tech{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto px-4 py-12">
+
+    <h1 class="text-3xl font-bold text-gray-800 mb-8">My Account</h1>
+
+    {% if messages %}
+        <div class="mb-6 space-y-2">
+            {% for message in messages %}
+                <p class="p-3 rounded-lg bg-green-50 text-green-700 text-sm">{{ message }}</p>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <div class="flex flex-wrap gap-3 mb-8">
+        <a href="{% url 'orders:order_list' %}"
+           class="inline-flex items-center gap-2 text-sm font-semibold text-indigo-600 hover:underline">
+            <i class="fa-solid fa-receipt"></i> My Orders
+        </a>
+    </div>
+
+    <div class="bg-white rounded-xl shadow p-6 sm:p-8">
+
+        <div class="flex items-center gap-4 mb-6">
+            <div class="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden shrink-0">
+                {% if profile.avatar %}
+                    <img src="{{ profile.avatar.url }}" alt="Avatar" class="w-full h-full object-cover">
+                {% else %}
+                    <i class="fa-solid fa-user text-2xl text-gray-300"></i>
+                {% endif %}
+            </div>
+            <div>
+                <p class="font-semibold text-gray-800">{{ user.username }}</p>
+                <p class="text-sm text-gray-500">{{ user.email }}</p>
+            </div>
+        </div>
+
+        <form method="post" enctype="multipart/form-data" class="space-y-5">
+            {% csrf_token %}
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div>
+                    <label for="{{ form.first_name.id_for_label }}" class="block text-xs font-semibold text-gray-500 uppercase mb-1.5">First name</label>
+                    {{ form.first_name.errors }}
+                    {{ form.first_name }}
+                </div>
+                <div>
+                    <label for="{{ form.last_name.id_for_label }}" class="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Last name</label>
+                    {{ form.last_name.errors }}
+                    {{ form.last_name }}
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div>
+                    <label for="{{ form.phone.id_for_label }}" class="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Phone</label>
+                    {{ form.phone.errors }}
+                    {{ form.phone }}
+                </div>
+                <div>
+                    <label for="{{ form.country.id_for_label }}" class="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Country</label>
+                    {{ form.country.errors }}
+                    {{ form.country }}
+                </div>
+            </div>
+
+            <div>
+                <label for="{{ form.avatar.id_for_label }}" class="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Avatar</label>
+                {{ form.avatar.errors }}
+                {{ form.avatar }}
+            </div>
+
+            <div>
+                <label for="{{ form.bio.id_for_label }}" class="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Bio</label>
+                {{ form.bio.errors }}
+                {{ form.bio }}
+            </div>
+
+            <button type="submit"
+                    class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-6 py-3 rounded-lg transition">
+                Save changes
+            </button>
+        </form>
+    </div>
+
+</div>
+{% endblock %}

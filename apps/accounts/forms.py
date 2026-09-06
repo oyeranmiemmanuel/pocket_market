@@ -2,6 +2,8 @@ from django import forms
 from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import UserCreationForm
 
+from .models import UserProfile
+
 User = get_user_model()
 
 
@@ -47,3 +49,25 @@ class RegisterForm(UserCreationForm):
 class LoginForm(forms.Form):
     username = forms.CharField(max_length=150)
     password = forms.CharField(widget=forms.PasswordInput)
+
+
+class ProfileForm(forms.ModelForm):
+    class Meta:
+        model = UserProfile
+        fields = ("first_name", "last_name", "phone", "country", "avatar", "bio")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        text_classes = (
+            "w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm "
+            "focus:outline-none focus:border-indigo-400"
+        )
+
+        for name, field in self.fields.items():
+            if name == "avatar":
+                field.widget.attrs.update({"class": "text-sm"})
+            elif name == "bio":
+                field.widget.attrs.update({"class": text_classes, "rows": 4})
+            else:
+                field.widget.attrs.update({"class": text_classes})

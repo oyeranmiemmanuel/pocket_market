@@ -1,21 +1,21 @@
+from decimal import Decimal, InvalidOperation
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
+from django.db.models import Avg, Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
-from apps.core.exceptions import ValidationFailedError  # you likely already have this
-from .forms import SellerPayoutRequestForm  # add to your existing forms import line
-from .services import apply_for_seller, request_seller_payout  # add request_seller_payout
-from apps.catalog.models import Product
-from apps.core.enums import FulfillmentStatus
+
+from apps.catalog.models import Product, Review
+from apps.core.enums import FulfillmentStatus, PayoutStatus
 from apps.core.exceptions import ValidationFailedError
 from apps.orders.models import OrderItem
 
-from .forms import SellerApplicationForm, SellerBankDetailsForm, SellerProductForm
+from .forms import SellerApplicationForm, SellerBankDetailsForm, SellerProductForm, SellerStoreSettingsForm
+from .models import SellerProfile, SellerStatus
 from .permissions import approved_seller_required
-from apps.payments.services import PaystackTransferError, list_banks, resolve_bank_account
-from .services import apply_for_seller, request_seller_payout, send_seller_payout  # add send_seller_payout
+from .services import apply_for_seller, request_seller_payout
 
-from .forms import SellerProductForm, SellerApplicationForm, SellerBankDetailsForm, SellerStoreSettingsForm  # add SellerStoreSettingsForm
 
 @login_required(login_url="accounts:login")
 def apply_view(request):
@@ -56,10 +56,6 @@ def dashboard_view(request):
     order_items = OrderItem.objects.filter(seller=profile)
 
     context = {
-        # PHASE 9
-                "withdrawable_balance": profile.withdrawable_balance,
-        "payouts_in_progress": profile.payouts_in_progress_total,
-        # ============================
         "profile": profile,
         "total_products": profile.products.filter(deleted_at__isnull=True).count(),
         "total_orders": order_items.values("order_id").distinct().count(),
@@ -76,38 +72,6 @@ def dashboard_view(request):
         "refunded_amount": profile.refunded_amount,
     }
     return render(request, "sellers/dashboard.html", context)
-@approved_seller_required
-def payout_list_view(request):
-    """
-    Phase 9. Shows this seller's own payout history plus a request form.
-    Same object-level-ownership pattern as earnings_view - a seller only
-    ever sees their own payouts.
-    """
-    profile = request.user.seller_profile
-
-    if request.method == "POST":
-        form = SellerPayoutRequestForm(request.POST)
-        if form.is_valid():
-            try:
-                payout = request_seller_payout(seller=profile, amount=form.cleaned_data["amount"])
-            except ValidationFailedError as e:
-                messages.error(request, str(e))
-            else:
-                messages.success(request, f"Payout request {payout.reference} submitted for \u20a6{payout.amount}.")
-            return redirect("sellers:payouts")
-    else:
-        form = SellerPayoutRequestForm()
-
-    payouts = profile.payouts.order_by("-created_at")
-    paginator = Paginator(payouts, 20)
-    page_obj = paginator.get_page(request.GET.get("page"))
-
-    return render(request, "sellers/payouts.html", {
-        "profile": profile,
-        "form": form,
-        "page_obj": page_obj,
-    })
-
 
 @approved_seller_required
 def earnings_view(request):
@@ -135,11 +99,6 @@ def earnings_view(request):
         "profile": profile,
         "page_obj": page_obj,
         "status_filter": status_filter,
-        "gross_sales": profile.total_sales,
-        "platform_fees": profile.platform_fees_total,
-        "affiliate_fees": profile.affiliate_fees_total,
-        "refunds": profile.refunded_amount,
-        "net_earnings": profile.total_earnings,
     })
 
 
@@ -215,6 +174,22 @@ def product_delete_view(request, pk):
     return render(request, "sellers/product_confirm_delete.html", {"product": product})
 
 
+@approved_seller_required
+def product_toggle_active_view(request, pk):
+    profile = request.user.seller_profile
+    product = get_object_or_404(Product, pk=pk, seller=profile)
+
+    if request.method == "POST":
+        product.is_active = not product.is_active
+        product.save(update_fields=["is_active", "updated_at"])
+        messages.success(
+            request,
+            f'"{product.name}" is now {"active" if product.is_active else "inactive"}.',
+        )
+
+    return redirect("sellers:product_list")
+
+
 # ---------------------------------------------------------------------------
 # Order management - phase 4.
 #
@@ -280,47 +255,20 @@ def update_fulfillment_status_view(request, item_id):
 def bank_details_view(request):
     profile = request.user.seller_profile
 
-    try:
-        banks = list_banks()
-    except PaystackTransferError as e:
-        banks = []
-        messages.warning(request, f"Could not load the bank list right now: {e}")
-
     if request.method == "POST":
         form = SellerBankDetailsForm(request.POST, instance=profile)
         if form.is_valid():
-            bank_code = form.cleaned_data["bank_code"]
-            account_number = form.cleaned_data["bank_account_number"]
-
-            try:
-                resolved = resolve_bank_account(account_number=account_number, bank_code=bank_code)
-            except PaystackTransferError as e:
-                messages.error(request, f"Could not verify that account: {e}")
-                return render(request, "sellers/bank_details.html", {"form": form, "banks": banks, "profile": profile})
-
-            bank_name = next((b["name"] for b in banks if b["code"] == bank_code), "")
-
-            profile.bank_code = bank_code
-            profile.bank_name = bank_name
-            profile.bank_account_number = resolved["account_number"]
-            # Account name always comes from Paystack's own verification,
-            # never from what the user typed - spec section 22.
-            profile.bank_account_name = resolved["account_name"]
-            profile.save(update_fields=[
-                "bank_code", "bank_name", "bank_account_number", "bank_account_name", "updated_at",
-            ])
-
-            messages.success(request, f"Bank details verified and saved for {resolved['account_name']}.")
+            form.save()
+            messages.success(request, "Bank details updated.")
             return redirect("sellers:dashboard")
     else:
         form = SellerBankDetailsForm(instance=profile)
 
-    return render(request, "sellers/bank_details.html", {"form": form, "banks": banks, "profile": profile})
+    return render(request, "sellers/bank_details.html", {"form": form})
 
 
 @approved_seller_required
 def store_settings_view(request):
-    """Phase 11 - store name/description/logo/banner. Bank details stay on their own page (Phase 10's verified flow)."""
     profile = request.user.seller_profile
 
     if request.method == "POST":
@@ -328,8 +276,76 @@ def store_settings_view(request):
         if form.is_valid():
             form.save()
             messages.success(request, "Store settings updated.")
-            return redirect("sellers:dashboard")
+            return redirect("sellers:store_settings")
     else:
         form = SellerStoreSettingsForm(instance=profile)
 
     return render(request, "sellers/store_settings.html", {"form": form, "profile": profile})
+
+
+@approved_seller_required
+def payouts_view(request):
+    profile = request.user.seller_profile
+
+    return render(request, "sellers/payouts.html", {
+        "profile": profile,
+        "available_balance": profile.withdrawable_balance,
+        "pending_earnings": profile.pending_earnings,
+        "payouts": profile.payouts.all(),
+        "has_pending_request": profile.payouts.filter(
+            status__in=[PayoutStatus.PENDING, PayoutStatus.PROCESSING],
+        ).exists(),
+    })
+
+
+@approved_seller_required
+def payout_request_view(request):
+    profile = request.user.seller_profile
+
+    if request.method == "POST":
+        try:
+            amount = Decimal(request.POST.get("amount") or "0")
+            request_seller_payout(seller=profile, amount=amount)
+            messages.success(request, "Payout requested.")
+        except (InvalidOperation, ValidationFailedError) as e:
+            messages.error(request, str(e) if isinstance(e, ValidationFailedError) else "Enter a valid amount.")
+
+    return redirect("sellers:payouts")
+
+
+# ---------------------------------------------------------------------------
+# Public storefront - mounted separately at /store/<slug>/ via
+# apps.sellers.public_urls, not apps.sellers.urls. Public, no
+# @approved_seller_required - any visitor can view an approved seller's store.
+# ---------------------------------------------------------------------------
+
+def public_store_view(request, slug):
+    seller = get_object_or_404(SellerProfile, store_slug=slug, status=SellerStatus.APPROVED)
+
+    products = Product.active.filter(seller=seller, is_active=True)
+
+    query = request.GET.get("q", "").strip()
+    if query:
+        products = products.filter(Q(name__icontains=query) | Q(description__icontains=query))
+
+    sort = request.GET.get("sort", "newest")
+    if sort == "price_asc":
+        products = products.order_by("price")
+    elif sort == "price_desc":
+        products = products.order_by("-price")
+    else:
+        sort = "newest"
+        products = products.order_by("-created_at")
+
+    rating_data = Review.objects.filter(product__seller=seller).aggregate(
+        average_rating=Avg("rating"), review_count=Count("id"),
+    )
+
+    return render(request, "sellers/public_store.html", {
+        "seller": seller,
+        "products": products,
+        "query": query,
+        "sort": sort,
+        "average_rating": rating_data["average_rating"] or 0,
+        "review_count": rating_data["review_count"],
+    })

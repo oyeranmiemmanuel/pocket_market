@@ -19,11 +19,30 @@
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-10 mt-6">
 
-        <div class="aspect-square bg-gray-100 rounded-xl flex items-center justify-center overflow-hidden">
-            {% if product.image %}
-                <img src="{{ product.image.url }}" alt="{{ product.name }}" class="w-full h-full object-cover">
-            {% else %}
-                <i class="fa-solid fa-image text-6xl text-gray-300"></i>
+        <div>
+            <div id="main-image" class="aspect-square bg-gray-100 rounded-xl flex items-center justify-center overflow-hidden">
+                {% if product.image %}
+                    <img id="main-image-img" src="{{ product.image.url }}" alt="{{ product.name }}" class="w-full h-full object-cover">
+                {% else %}
+                    <i class="fa-solid fa-image text-6xl text-gray-300"></i>
+                {% endif %}
+            </div>
+
+            {% if product.gallery_images.all %}
+            <div class="grid grid-cols-5 gap-2 mt-3">
+                {% if product.image %}
+                <button type="button" onclick="setMainImage('{{ product.image.url }}')"
+                        class="aspect-square bg-gray-100 rounded-lg overflow-hidden border-2 border-indigo-500">
+                    <img src="{{ product.image.url }}" alt="{{ product.name }}" class="w-full h-full object-cover">
+                </button>
+                {% endif %}
+                {% for img in product.gallery_images.all %}
+                <button type="button" onclick="setMainImage('{{ img.image.url }}')"
+                        class="aspect-square bg-gray-100 rounded-lg overflow-hidden border-2 border-transparent hover:border-indigo-300">
+                    <img src="{{ img.image.url }}" alt="{{ img.alt_text|default:product.name }}" class="w-full h-full object-cover">
+                </button>
+                {% endfor %}
+            </div>
             {% endif %}
         </div>
 
@@ -31,7 +50,27 @@
             {% if product.category %}
                 <p class="text-sm text-indigo-600 font-semibold mb-1">{{ product.category.name }}</p>
             {% endif %}
-            <h1 class="text-3xl font-bold text-gray-800 mb-3">{{ product.name }}</h1>
+            <h1 class="text-3xl font-bold text-gray-800 mb-1">{{ product.name }}</h1>
+
+            <div class="flex items-center gap-2 mb-2">
+                {% include 'catalog/_stars.html' with rating=product.average_rating %}
+                {% if product.review_count %}
+                    <a href="#reviews" class="text-xs text-gray-500 hover:underline">
+                        {{ product.average_rating }} ({{ product.review_count }} review{{ product.review_count|pluralize }})
+                    </a>
+                {% else %}
+                    <span class="text-xs text-gray-400">No reviews yet</span>
+                {% endif %}
+            </div>
+
+            <p class="text-sm text-gray-500 mb-3">
+                <i class="fa-solid fa-store text-gray-400 mr-1"></i>
+                {% if product.seller %}
+                    Sold by <a href="{% url 'store:detail' product.seller.store_slug %}" class="font-semibold text-indigo-600 hover:underline">{{ product.seller.store_name }}</a>
+                {% else %}
+                    Sold by <span class="font-semibold text-gray-700">Top Tech</span>
+                {% endif %}
+            </p>
 
             {% if product.is_digital %}
                 <span class="inline-block text-xs font-semibold text-indigo-600 bg-indigo-50 px-2 py-1 rounded mb-3">
@@ -42,6 +81,35 @@
             <p class="text-3xl font-bold text-gray-900 mb-4">₦{{ product.price }}</p>
 
             <p class="text-gray-600 mb-6 leading-relaxed">{{ product.description }}</p>
+
+            {% if product.color_variants.all %}
+            <div class="mb-5">
+                <p class="text-xs font-semibold text-gray-500 uppercase mb-2">Color</p>
+                <div class="flex flex-wrap gap-2">
+                    {% for color in product.color_variants.all %}
+                    <button type="button" onclick="selectSwatch(this, 'color')"
+                            title="{{ color.name }}"
+                            class="variant-swatch w-9 h-9 rounded-full border-2 border-gray-200 hover:border-indigo-400 transition"
+                            style="background-color: {{ color.hex_code|default:'#e5e7eb' }};">
+                    </button>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if product.size_variants.all %}
+            <div class="mb-5">
+                <p class="text-xs font-semibold text-gray-500 uppercase mb-2">Size</p>
+                <div class="flex flex-wrap gap-2">
+                    {% for size in product.size_variants.all %}
+                    <button type="button" onclick="selectSwatch(this, 'size')"
+                            class="variant-swatch px-4 py-2 rounded-lg border-2 border-gray-200 hover:border-indigo-400 transition text-sm font-medium text-gray-700">
+                        {{ size.label }}
+                    </button>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
 
             {% if product.stock > 0 %}
                 <p class="text-sm text-green-600 mb-4"><i class="fa-solid fa-circle-check"></i> In stock ({{ product.stock }} available)</p>
@@ -111,5 +179,106 @@
     </div>
     {% endif %}
 
+    <div id="reviews" class="mt-16 max-w-3xl">
+        <h2 class="text-xl font-bold text-gray-800 mb-6">
+            Reviews
+            {% if product.review_count %}<span class="text-gray-400 font-normal">({{ product.review_count }})</span>{% endif %}
+        </h2>
+
+        {% if messages %}
+            <div class="mb-6 space-y-2">
+                {% for message in messages %}
+                    <p class="p-3 rounded-lg bg-green-50 text-green-700 text-sm">{{ message }}</p>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        {% if can_review %}
+        <div class="bg-white rounded-xl shadow p-6 mb-8">
+            <h3 class="font-semibold text-gray-800 mb-4">Write a review</h3>
+            <form method="post" action="{% url 'catalog:submit_review' product.slug %}">
+                {% csrf_token %}
+                <div class="flex gap-4 mb-4">
+                    {% for radio in review_form.rating %}
+                    <label class="flex items-center gap-1.5 cursor-pointer text-sm text-gray-600">
+                        {{ radio.tag }} {{ radio.choice_label }}
+                    </label>
+                    {% endfor %}
+                </div>
+                {{ review_form.text }}
+                <button type="submit"
+                        class="mt-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-5 py-2.5 rounded-lg transition text-sm">
+                    Submit Review
+                </button>
+            </form>
+        </div>
+        {% endif %}
+
+        {% if reviews %}
+        <div class="space-y-6">
+            {% for review in reviews %}
+            <div class="border-b border-gray-100 pb-6">
+                <div class="flex items-center gap-2 mb-1">
+                    {% include 'catalog/_stars.html' with rating=review.rating %}
+                    <span class="font-semibold text-gray-800 text-sm">{{ review.user.username }}</span>
+                    {% if review.verified_purchase %}
+                        <span class="inline-flex items-center gap-1 text-xs font-semibold text-green-700 bg-green-50 px-2 py-0.5 rounded-full">
+                            <i class="fa-solid fa-circle-check"></i> Verified Purchase
+                        </span>
+                    {% endif %}
+                </div>
+                <p class="text-xs text-gray-400 mb-2">{{ review.created_at|date:"M d, Y" }}</p>
+                {% if review.text %}
+                    <p class="text-gray-600 text-sm leading-relaxed">{{ review.text }}</p>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-gray-400 text-sm">No reviews yet{% if can_review %} - be the first!{% endif %}</p>
+        {% endif %}
+    </div>
+
 </div>
+
+<style>
+    #reviews textarea {
+        width: 100%;
+        padding: 0.625rem 0.75rem;
+        border: 1px solid #d1d5db;
+        border-radius: 0.5rem;
+        font-size: 0.875rem;
+    }
+    #reviews input[type="radio"] { width: auto; }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Thumbnail click swaps the main image - no page reload, no cart/order
+    // interaction, purely a gallery viewer.
+    function setMainImage(url) {
+        const img = document.getElementById('main-image-img');
+        if (img) {
+            img.src = url;
+        } else {
+            const container = document.getElementById('main-image');
+            container.innerHTML = '<img id="main-image-img" src="' + url + '" class="w-full h-full object-cover">';
+        }
+    }
+
+    // Color/size swatches are a visual picker only right now - selecting
+    // one highlights it but isn't sent with Add to Cart. The product
+    // model doesn't yet track stock per color/size combination, so
+    // wiring this into the cart would silently ignore the choice or
+    // imply a guarantee (e.g. "this exact color is in stock") that isn't
+    // actually being checked anywhere.
+    function selectSwatch(button, group) {
+        const siblings = button.parentElement.querySelectorAll('.variant-swatch');
+        siblings.forEach(function (el) {
+            el.classList.remove('ring-2', 'ring-indigo-500', 'border-indigo-500');
+        });
+        button.classList.add('ring-2', 'ring-indigo-500', 'border-indigo-500');
+    }
+</script>
 {% endblock %}

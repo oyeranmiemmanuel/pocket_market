@@ -1,82 +1,190 @@
-{% load static %}
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Your Cart</title>
-    <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #f4f6f8; padding: 40px; }
-        .cart-container { max-width: 800px; margin: 0 auto; background: white; border-radius: 12px; padding: 30px; box-shadow: 0 5px 20px rgba(0,0,0,0.08); }
-        h1 { margin-bottom: 20px; color: #2c3e50; }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { text-align: left; padding: 12px 8px; border-bottom: 1px solid #eee; }
-        th { color: #888; font-size: 13px; text-transform: uppercase; }
-        input[type="number"] { width: 60px; padding: 6px; border: 1px solid #ddd; border-radius: 4px; }
-        .btn { padding: 8px 14px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; }
-        .btn-update { background: #3498db; color: white; }
-        .btn-remove { background: #e74c3c; color: white; }
-        .totals { text-align: right; margin-top: 20px; font-size: 18px; font-weight: 600; }
-        .empty { text-align: center; color: #888; padding: 40px 0; }
-        .messages { margin-bottom: 15px; }
-        .messages p { padding: 10px; border-radius: 6px; background: #d4edda; color: #155724; }
-    </style>
-</head>
-<body>
-<div class="cart-container">
-    <h1>Your Cart</h1>
+{% extends 'core/base.html' %}
+
+{% block title %}Your Cart | Top Tech{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-12">
+
+    <h1 class="text-3xl font-bold text-gray-800 mb-8">Your Cart</h1>
 
     {% if messages %}
-        <div class="messages">
+        <div class="mb-6 space-y-2">
             {% for message in messages %}
-                <p>{{ message }}</p>
+                <p class="p-3 rounded-lg bg-green-50 text-green-700 text-sm">{{ message }}</p>
             {% endfor %}
         </div>
     {% endif %}
 
     {% if cart.items.all %}
-        <table>
-            <thead>
-                <tr>
-                    <th>Product</th>
-                    <th>Price</th>
-                    <th>Quantity</th>
-                    <th>Subtotal</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for item in cart.items.all %}
-                <tr>
-                    <td>{{ item.product.name }}</td>
-                    <td>₦{{ item.product.price }}</td>
-                    <td>
-                        <form method="post" action="{% url 'cart:update_cart_item' item.id %}" style="display:flex; gap:6px;">
-                            {% csrf_token %}
-                            <input type="number" name="quantity" value="{{ item.quantity }}" min="0">
-                            <button class="btn btn-update" type="submit">Update</button>
-                        </form>
-                    </td>
-                    <td>₦{{ item.subtotal }}</td>
-                    <td>
-                        <form method="post" action="{% url 'cart:remove_from_cart' item.id %}">
-                            {% csrf_token %}
-                            <button class="btn btn-remove" type="submit">Remove</button>
-                        </form>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+    <div class="bg-white rounded-xl shadow overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-left text-xs text-gray-400 uppercase border-b border-gray-100">
+                        <th class="px-5 py-4 font-semibold">Product</th>
+                        <th class="px-5 py-4 font-semibold">Price</th>
+                        <th class="px-5 py-4 font-semibold">Quantity</th>
+                        <th class="px-5 py-4 font-semibold">Subtotal</th>
+                        <th class="px-5 py-4"></th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100" id="cart-items-body">
+                    {% for item in cart.items.all %}
+                    <tr data-item-id="{{ item.id }}" data-update-url="{% url 'cart:update_cart_item' item.id %}">
+                        <td class="px-5 py-4">
+                            <div class="flex items-center gap-3">
+                                <div class="w-14 h-14 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden shrink-0">
+                                    {% if item.product.image %}
+                                        <img src="{{ item.product.image.url }}" alt="{{ item.product.name }}" class="w-full h-full object-cover">
+                                    {% else %}
+                                        <i class="fa-solid fa-image text-gray-300"></i>
+                                    {% endif %}
+                                </div>
+                                <span class="font-medium text-gray-800">{{ item.product.name }}</span>
+                            </div>
+                        </td>
+                        <td class="px-5 py-4 text-gray-600">₦{{ item.product.price }}</td>
+                        <td class="px-5 py-4">
+                            <input type="number" min="0" value="{{ item.quantity }}"
+                                   class="cart-qty-input w-16 border border-gray-300 rounded-lg px-2 py-1.5 text-sm"
+                                   data-original-value="{{ item.quantity }}">
+                        </td>
+                        <td class="px-5 py-4 font-semibold text-gray-800">₦{{ item.subtotal }}</td>
+                        <td class="px-5 py-4 text-right">
+                            <form method="post" action="{% url 'cart:remove_from_cart' item.id %}" class="remove-cart-item-form">
+                                {% csrf_token %}
+                                <button type="submit"
+                                        class="text-red-500 hover:text-red-700 text-xs font-semibold">
+                                    <i class="fa-solid fa-trash mr-1"></i> Remove
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
 
-        <div class="totals">
-            Total ({{ cart.total_items }} item{{ cart.total_items|pluralize }}): ₦{{ cart.total_price }}
+        <div class="p-5 border-t border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <button type="button" id="update-cart-btn"
+                    class="bg-gray-800 hover:bg-gray-900 text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition">
+                <i class="fa-solid fa-rotate mr-1"></i> Update Cart
+            </button>
+            <p class="text-lg font-bold text-gray-800">
+                Total ({{ cart.total_items }} item{{ cart.total_items|pluralize }}):
+                <span class="text-indigo-600">₦{{ cart.total_price }}</span>
+            </p>
+            <a href="{% url 'orders:checkout' %}"
+               class="inline-block bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-6 py-3 rounded-lg transition text-center">
+                Proceed to Checkout
+            </a>
         </div>
-        <div style="text-align:right; margin-top:15px;">
-            <a href="{% url 'orders:checkout' %}" style="display:inline-block; padding:10px 20px; background:#4f46e5; color:white; text-decoration:none; border-radius:6px; font-weight:600;">Proceed to Checkout</a>
-        </div>
+    </div>
     {% else %}
-        <p class="empty">Your cart is empty.</p>
+    <div class="text-center py-20 text-gray-400 bg-white rounded-xl shadow">
+        <i class="fa-solid fa-cart-shopping text-5xl mb-4"></i>
+        <p>Your cart is empty.</p>
+        <a href="{% url 'catalog:product_list' %}" class="inline-block mt-4 text-indigo-600 font-semibold hover:underline">
+            Continue shopping
+        </a>
+    </div>
     {% endif %}
+
 </div>
-</body>
-</html>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Single "Update Cart" button applies every changed quantity at once.
+// Reuses the existing per-item cart:update_cart_item endpoint via fetch,
+// so no backend changes are needed - the button just orchestrates the
+// same requests that used to be one-per-row.
+(function () {
+    const updateBtn = document.getElementById('update-cart-btn');
+    if (!updateBtn) return;
+
+    function getCookie(name) {
+        const match = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+        return match ? match.pop() : '';
+    }
+
+    updateBtn.addEventListener('click', function () {
+        const rows = document.querySelectorAll('#cart-items-body tr[data-item-id]');
+        const requests = [];
+
+        rows.forEach(function (row) {
+            const input = row.querySelector('.cart-qty-input');
+            const newValue = input.value;
+            const originalValue = input.dataset.originalValue;
+            if (newValue === originalValue) return; // skip unchanged rows
+
+            const formData = new FormData();
+            formData.append('quantity', newValue);
+            formData.append('csrfmiddlewaretoken', getCookie('csrftoken'));
+
+            requests.push(
+                fetch(row.dataset.updateUrl, {
+                    method: 'POST',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                    body: formData,
+                    cache: 'no-store',
+                })
+            );
+        });
+
+        if (!requests.length) return;
+
+        updateBtn.disabled = true;
+        updateBtn.textContent = 'Updating...';
+
+        Promise.all(requests)
+            .then(function () {
+                window.location.reload();
+            })
+            .catch(function () {
+                updateBtn.disabled = false;
+                updateBtn.innerHTML = '<i class="fa-solid fa-rotate mr-1"></i> Update Cart';
+                alert('Could not update cart. Please try again.');
+            });
+    });
+
+    // Remove button: submit via fetch (cache: 'no-store' so nothing stale
+    // can be served), drop the row from the DOM immediately, then reload
+    // so totals/cart-popup stay in sync with the server.
+    document.addEventListener('submit', function (e) {
+        const form = e.target;
+        if (!form.classList || !form.classList.contains('remove-cart-item-form')) return;
+
+        e.preventDefault();
+
+        const row = form.closest('tr[data-item-id]');
+        const productName = row ? row.querySelector('.font-medium')?.textContent.trim() : 'this item';
+        if (!window.confirm('Remove ' + (productName || 'this item') + ' from your cart?')) {
+            return;
+        }
+
+        const button = form.querySelector('button[type="submit"]');
+        if (button) button.disabled = true;
+
+        fetch(form.action, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': getCookie('csrftoken'),
+            },
+            body: new FormData(form),
+            cache: 'no-store',
+        })
+            .then(function (resp) {
+                if (!resp.ok) throw new Error('Remove failed');
+                if (row) row.remove();
+                window.location.reload();
+            })
+            .catch(function () {
+                if (button) button.disabled = false;
+                alert('Could not remove item. Please try again.');
+            });
+    });
+})();
+</script>
+{% endblock %}

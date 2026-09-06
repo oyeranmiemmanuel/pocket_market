@@ -17,5 +17,8 @@ urlpatterns = [
     # Phase 7 - commission calculations
     path("conversions/", views.my_conversions_view, name="my_conversions"),
 
-        path("payouts/", views.payout_list_view, name="payouts"),
+    # Phase 9 - payout requests. Real balances, no persisted history yet -
+    # see apps.affiliates.views.payouts_view.
+    path("payouts/", views.payouts_view, name="payouts"),
+    path("payouts/request/", views.payout_request_view, name="payout_request"),
 ]

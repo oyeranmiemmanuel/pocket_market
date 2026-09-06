@@ -1,97 +1,278 @@
 {% extends 'core/base.html' %}
+
 {% block title %}{% if mode == 'edit' %}Edit Product{% else %}Add Product{% endif %} | Top Tech{% endblock %}
+
 {% block content %}
-<div class="max-w-xl mx-auto px-4 py-12">
-    <h1 class="text-3xl font-bold text-gray-800 mb-2">
+<div class="max-w-2xl mx-auto px-4 py-12">
+
+    <a href="{% url 'sellers:product_list' %}" class="text-indigo-600 text-sm font-semibold hover:underline">
+        <i class="fa-solid fa-arrow-left mr-1"></i> Back to Products
+    </a>
+
+    <h1 class="text-2xl font-bold text-gray-800 mt-4 mb-8">
         {% if mode == 'edit' %}Edit "{{ product.name }}"{% else %}Add Product{% endif %}
     </h1>
-    <p class="text-gray-500 mb-8">
-        {% if mode == 'edit' %}Update your product details below.{% else %}List a new product in your store.{% endif %}
-    </p>
 
-    {% if form.non_field_errors %}
-        <p class="p-3 rounded-lg bg-red-50 text-red-700 text-sm mb-4">{{ form.non_field_errors }}</p>
+    {% if form.non_field_errors or image_formset.non_form_errors or color_formset.non_form_errors or size_formset.non_form_errors %}
+        <div class="mb-6 space-y-2">
+            {% for error in form.non_field_errors %}<p class="p-3 rounded-lg bg-red-50 text-red-700 text-sm">{{ error }}</p>{% endfor %}
+            {% for error in image_formset.non_form_errors %}<p class="p-3 rounded-lg bg-red-50 text-red-700 text-sm">{{ error }}</p>{% endfor %}
+            {% for error in color_formset.non_form_errors %}<p class="p-3 rounded-lg bg-red-50 text-red-700 text-sm">{{ error }}</p>{% endfor %}
+            {% for error in size_formset.non_form_errors %}<p class="p-3 rounded-lg bg-red-50 text-red-700 text-sm">{{ error }}</p>{% endfor %}
+        </div>
     {% endif %}
 
-    <form method="post" enctype="multipart/form-data" class="bg-white rounded-xl shadow p-6 space-y-4">
-        {% csrf_token %}
+    <div class="bg-white rounded-xl shadow p-6 sm:p-8">
+        <form method="post" enctype="multipart/form-data" class="space-y-5">
+            {% csrf_token %}
 
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Name</label>
-            {{ form.name.errors }}
-            <input type="text" name="name" value="{{ form.name.value|default:'' }}"
-                   class="w-full border border-gray-300 rounded-lg px-3 py-2" required>
-        </div>
-
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Category</label>
-            {{ form.category.errors }}
-            <select name="category" class="w-full border border-gray-300 rounded-lg px-3 py-2">
-                <option value="">-- None --</option>
-                {% for choice in form.category.field.queryset %}
-                    <option value="{{ choice.pk }}" {% if form.category.value|stringformat:"s" == choice.pk|stringformat:"s" %}selected{% endif %}>{{ choice.name }}</option>
-                {% endfor %}
-            </select>
-        </div>
-
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
-            {{ form.description.errors }}
-            <textarea name="description" rows="4"
-                      class="w-full border border-gray-300 rounded-lg px-3 py-2">{{ form.description.value|default:'' }}</textarea>
-        </div>
-
-        <div class="grid grid-cols-2 gap-4">
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Price (₦)</label>
-                {{ form.price.errors }}
-                <input type="number" step="0.01" name="price" value="{{ form.price.value|default:'' }}"
-                       class="w-full border border-gray-300 rounded-lg px-3 py-2" required>
+                <label for="{{ form.name.id_for_label }}" class="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Name</label>
+                {{ form.name.errors }}
+                {{ form.name }}
             </div>
+
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Stock</label>
-                {{ form.stock.errors }}
-                <input type="number" name="stock" value="{{ form.stock.value|default:'0' }}"
-                       class="w-full border border-gray-300 rounded-lg px-3 py-2" required>
+                <label for="{{ form.category.id_for_label }}" class="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Category</label>
+                {{ form.category.errors }}
+                {{ form.category }}
             </div>
-        </div>
 
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Product Type</label>
-            {{ form.product_type.errors }}
-            <select name="product_type" class="w-full border border-gray-300 rounded-lg px-3 py-2">
-                {% for value, label in form.fields.product_type.choices %}
-                    <option value="{{ value }}" {% if form.product_type.value == value %}selected{% endif %}>{{ label }}</option>
-                {% endfor %}
-            </select>
-        </div>
+            <div>
+                <label for="{{ form.description.id_for_label }}" class="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Description</label>
+                {{ form.description.errors }}
+                {{ form.description }}
+            </div>
 
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Image</label>
-            {{ form.image.errors }}
-            {% if product.image %}
-                <img src="{{ product.image.url }}" class="w-24 h-24 object-cover rounded-lg mb-2">
-            {% endif %}
-            <input type="file" name="image" class="w-full text-sm">
-        </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div>
+                    <label for="{{ form.price.id_for_label }}" class="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Price (₦)</label>
+                    {{ form.price.errors }}
+                    {{ form.price }}
+                </div>
+                <div>
+                    <label for="{{ form.stock.id_for_label }}" class="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Stock</label>
+                    {{ form.stock.errors }}
+                    {{ form.stock }}
+                </div>
+            </div>
 
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Digital File (digital products only)</label>
-            {{ form.digital_file.errors }}
-            <input type="file" name="digital_file" class="w-full text-sm">
-        </div>
+            <div>
+                <label for="{{ form.product_type.id_for_label }}" class="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Product type</label>
+                {{ form.product_type.errors }}
+                {{ form.product_type }}
+            </div>
 
-        <div class="flex items-center gap-2">
-            <input type="checkbox" name="is_active" id="is_active" {% if form.is_active.value %}checked{% endif %}>
-            <label for="is_active" class="text-sm text-gray-700">Visible / purchasable</label>
-        </div>
+            <div>
+                <label for="{{ form.image.id_for_label }}" class="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Main image</label>
+                {% if product.image %}
+                    <div class="w-20 h-20 bg-gray-100 rounded-lg overflow-hidden mb-2">
+                        <img src="{{ product.image.url }}" alt="{{ product.name }}" class="w-full h-full object-cover">
+                    </div>
+                {% endif %}
+                {{ form.image.errors }}
+                {{ form.image }}
+            </div>
 
-        <div class="flex gap-3 pt-2">
-            <button type="submit" class="bg-indigo-600 text-white px-5 py-2 rounded-lg font-semibold hover:bg-indigo-700">
+            <div>
+                <label for="{{ form.digital_file.id_for_label }}" class="block text-xs font-semibold text-gray-500 uppercase mb-1.5">
+                    Digital file <span class="normal-case text-gray-400">(only for digital products)</span>
+                </label>
+                {{ form.digital_file.errors }}
+                {{ form.digital_file }}
+            </div>
+
+            <label class="flex items-center gap-2 cursor-pointer">
+                {{ form.is_active }}
+                <span class="text-sm text-gray-600">Active (visible and purchasable)</span>
+            </label>
+
+            {# ============================== GALLERY IMAGES ============================== #}
+            <div class="border-t border-gray-100 pt-6">
+                <div class="flex items-center justify-between mb-3">
+                    <label class="block text-xs font-semibold text-gray-500 uppercase">
+                        Extra Gallery Images <span class="normal-case text-gray-400">(up to {{ max_images }} total)</span>
+                    </label>
+                    <button type="button" id="add-image-row" class="text-indigo-600 text-xs font-semibold hover:underline">
+                        + Add Image
+                    </button>
+                </div>
+
+                {{ image_formset.management_form }}
+                {% if image_formset.non_form_errors %}
+                    <p class="text-xs text-red-600 mb-2">{{ image_formset.non_form_errors }}</p>
+                {% endif %}
+
+                <div id="image-formset-rows" class="space-y-3">
+                    {% for img_form in image_formset.forms %}
+                    <div class="formset-row flex items-start gap-3 border border-gray-100 rounded-lg p-3">
+                        {% if img_form.instance.pk and img_form.instance.image %}
+                        <div class="w-14 h-14 bg-gray-100 rounded-lg overflow-hidden shrink-0">
+                            <img src="{{ img_form.instance.image.url }}" alt="" class="w-full h-full object-cover">
+                        </div>
+                        {% endif %}
+                        <div class="flex-1 space-y-2">
+                            {{ img_form.id }}
+                            {{ img_form.image.errors }}
+                            {{ img_form.image }}
+                            {{ img_form.alt_text }}
+                        </div>
+                        {% if img_form.instance.pk %}
+                        <label class="flex items-center gap-1 text-xs text-red-500 whitespace-nowrap pt-2">
+                            {{ img_form.DELETE }} Remove
+                        </label>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <template id="image-empty-form">
+                    <div class="formset-row flex items-start gap-3 border border-gray-100 rounded-lg p-3">
+                        <div class="flex-1 space-y-2">
+                            {{ image_formset.empty_form.image }}
+                            {{ image_formset.empty_form.alt_text }}
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+            {# ============================== COLOR VARIANTS ============================== #}
+            <div class="border-t border-gray-100 pt-6">
+                <div class="flex items-center justify-between mb-3">
+                    <label class="block text-xs font-semibold text-gray-500 uppercase">Color Options</label>
+                    <button type="button" id="add-color-row" class="text-indigo-600 text-xs font-semibold hover:underline">
+                        + Add Color
+                    </button>
+                </div>
+
+                {{ color_formset.management_form }}
+
+                <div id="color-formset-rows" class="space-y-3">
+                    {% for color_form in color_formset.forms %}
+                    <div class="formset-row flex items-start gap-3 border border-gray-100 rounded-lg p-3">
+                        <div class="flex-1 grid grid-cols-2 gap-2">
+                            {{ color_form.id }}
+                            {{ color_form.name.errors }}
+                            {{ color_form.name }}
+                            {{ color_form.hex_code }}
+                        </div>
+                        {% if color_form.instance.pk %}
+                        <label class="flex items-center gap-1 text-xs text-red-500 whitespace-nowrap pt-2">
+                            {{ color_form.DELETE }} Remove
+                        </label>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <template id="color-empty-form">
+                    <div class="formset-row flex items-start gap-3 border border-gray-100 rounded-lg p-3">
+                        <div class="flex-1 grid grid-cols-2 gap-2">
+                            {{ color_formset.empty_form.name }}
+                            {{ color_formset.empty_form.hex_code }}
+                        </div>
+                    </div>
+                </template>
+                <p class="text-xs text-gray-400 mt-2">Name e.g. "Midnight Blue", hex e.g. #1D4ED8 (optional, controls the swatch color).</p>
+            </div>
+
+            {# ============================== SIZE VARIANTS ============================== #}
+            <div class="border-t border-gray-100 pt-6">
+                <div class="flex items-center justify-between mb-3">
+                    <label class="block text-xs font-semibold text-gray-500 uppercase">Size Options</label>
+                    <button type="button" id="add-size-row" class="text-indigo-600 text-xs font-semibold hover:underline">
+                        + Add Size
+                    </button>
+                </div>
+
+                {{ size_formset.management_form }}
+
+                <div id="size-formset-rows" class="space-y-3">
+                    {% for size_form in size_formset.forms %}
+                    <div class="formset-row flex items-start gap-3 border border-gray-100 rounded-lg p-3">
+                        <div class="flex-1">
+                            {{ size_form.id }}
+                            {{ size_form.label.errors }}
+                            {{ size_form.label }}
+                        </div>
+                        {% if size_form.instance.pk %}
+                        <label class="flex items-center gap-1 text-xs text-red-500 whitespace-nowrap pt-2">
+                            {{ size_form.DELETE }} Remove
+                        </label>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <template id="size-empty-form">
+                    <div class="formset-row flex items-start gap-3 border border-gray-100 rounded-lg p-3">
+                        <div class="flex-1">
+                            {{ size_formset.empty_form.label }}
+                        </div>
+                    </div>
+                </template>
+                <p class="text-xs text-gray-400 mt-2">E.g. S, M, L, XL, or a shoe/numeric size.</p>
+            </div>
+
+            <button type="submit"
+                    class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-lg transition">
                 {% if mode == 'edit' %}Save Changes{% else %}Create Product{% endif %}
             </button>
-            <a href="{% url 'sellers:product_list' %}" class="px-5 py-2 rounded-lg text-gray-600 hover:bg-gray-100">Cancel</a>
-        </div>
-    </form>
+        </form>
+    </div>
+
 </div>
+
+<style>
+    form input[type="text"], form input[type="number"], form input[type="email"],
+    form select, form textarea {
+        width: 100%;
+        padding: 0.625rem 0.75rem;
+        border: 1px solid #d1d5db;
+        border-radius: 0.5rem;
+        font-size: 0.875rem;
+    }
+    form input[type="checkbox"] { width: auto; }
+    form input[type="file"] { font-size: 0.8rem; }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Generic "add another row" handler for a Django inline formset rendered
+    // with a <template> holding the empty_form markup (with __prefix__
+    // placeholders Django leaves in field name/id attrs). Cloning the
+    // template, swapping __prefix__ for the current form count, and
+    // bumping TOTAL_FORMS is the standard way to grow a formset without a
+    // page reload - no server round-trip needed to add a blank row.
+    function setupFormset(addBtnId, rowsContainerId, templateId, totalFormsId, maxForms) {
+        const addBtn = document.getElementById(addBtnId);
+        if (!addBtn) return;
+
+        const rowsContainer = document.getElementById(rowsContainerId);
+        const template = document.getElementById(templateId);
+        const totalFormsInput = document.getElementById(totalFormsId);
+
+        addBtn.addEventListener('click', function () {
+            const currentCount = parseInt(totalFormsInput.value, 10);
+
+            if (maxForms && currentCount >= maxForms) {
+                alert('You can add up to ' + maxForms + '.');
+                return;
+            }
+
+            const fragment = template.content.cloneNode(true);
+            const wrapper = document.createElement('div');
+            wrapper.appendChild(fragment);
+            wrapper.innerHTML = wrapper.innerHTML.split('__prefix__').join(currentCount);
+
+            rowsContainer.appendChild(wrapper.firstElementChild);
+            totalFormsInput.value = currentCount + 1;
+        });
+    }
+
+    setupFormset('add-image-row', 'image-formset-rows', 'image-empty-form', 'id_images-TOTAL_FORMS', {{ max_images }});
+    setupFormset('add-color-row', 'color-formset-rows', 'color-empty-form', 'id_colors-TOTAL_FORMS', null);
+    setupFormset('add-size-row', 'size-formset-rows', 'size-empty-form', 'id_sizes-TOTAL_FORMS', null);
+</script>
 {% endblock %}

@@ -1,5 +1,7 @@
 from django.contrib import admin
+from django.urls import path
 
+from .admin_views import platform_analytics_view
 from .models import LedgerEntry
 
 
@@ -27,3 +29,21 @@ class LedgerEntryAdmin(admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return False
+
+# Phase 12 - bolts a custom page onto the existing Django admin (spec
+# section 32: "extend the existing Django admin") rather than a
+# separate app/URL namespace. Standard Django pattern: wrap
+# admin.site.get_urls so our route is registered alongside the built-in
+# ones, protected the same way (admin.site.admin_view enforces staff
+# login exactly like every other admin page).
+_original_get_urls = admin.site.get_urls
+
+
+def _get_urls_with_analytics():
+    custom_urls = [
+        path("analytics/", admin.site.admin_view(platform_analytics_view), name="platform_analytics"),
+    ]
+    return custom_urls + _original_get_urls()
+
+
+admin.site.get_urls = _get_urls_with_analytics

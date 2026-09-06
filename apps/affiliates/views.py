@@ -1,17 +1,22 @@
+from decimal import Decimal, InvalidOperation
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404, redirect, render
 
 from apps.catalog.models import Product
+from apps.core.enums import PayoutStatus
 from apps.core.exceptions import ValidationFailedError
-from .forms import AffiliatePayoutRequestForm  # add to your existing forms import line
-from .services import request_affiliate_payout  # add to your existing services import line
+
 from .forms import AffiliateBankDetailsForm
 from .permissions import active_affiliate_required
-from .services import apply_for_affiliate, generate_affiliate_link
-from apps.payments.services import PaystackTransferError, list_banks, resolve_bank_account
-from .services import request_affiliate_payout, send_affiliate_payout  # add to your existing services import
+from .services import (
+    apply_for_affiliate,
+    generate_affiliate_link,
+    request_affiliate_payout,
+    resolve_affiliate_commission_rate,
+)
 
 
 @login_required(login_url="accounts:login")
@@ -49,10 +54,30 @@ def application_status_view(request):
 
 @active_affiliate_required
 def dashboard_view(request):
+    """
+    Was previously missing @active_affiliate_required - any logged-in
+    user (even one with no AffiliateProfile at all) could hit this URL
+    and crash on request.user.affiliate_profile. Fixed as part of
+    building out the rest of this page, matching every other view here.
+    """
     profile = request.user.affiliate_profile
+
+    total_clicks = profile.total_clicks
+    total_conversions = profile.total_conversions
+    conversion_rate = (total_conversions / total_clicks * 100) if total_clicks else Decimal("0")
+
     return render(request, "affiliates/dashboard.html", {
         "profile": profile,
         "total_links": profile.links.filter(is_active=True).count(),
+        "total_clicks": total_clicks,
+        "total_conversions": total_conversions,
+        "conversion_rate": conversion_rate,
+        # Real numbers from the commission ledger (Phase 7/8) - no longer
+        # a hardcoded ₦0 placeholder, now that AffiliateProfile actually
+        # aggregates these from AffiliateCommission.
+        "total_earnings": profile.total_earnings,
+        "pending_earnings": profile.pending_earnings,
+        "available_balance": profile.available_earnings,
     })
 
 
@@ -90,35 +115,7 @@ def my_conversions_view(request):
         "status_filter": status_filter,
     })
 
-@active_affiliate_required
-def payout_list_view(request):
-    """Phase 9 - mirrors sellers.views.payout_list_view exactly."""
-    profile = request.user.affiliate_profile
 
-    if request.method == "POST":
-        form = AffiliatePayoutRequestForm(request.POST)
-        if form.is_valid():
-            try:
-                payout = request_affiliate_payout(affiliate=profile, amount=form.cleaned_data["amount"])
-            except ValidationFailedError as e:
-                messages.error(request, str(e))
-            else:
-                messages.success(request, f"Payout request {payout.reference} submitted for \u20a6{payout.amount}.")
-            return redirect("affiliates:payouts")
-    else:
-        form = AffiliatePayoutRequestForm()
-
-    payouts = profile.payouts.order_by("-created_at")
-    paginator = Paginator(payouts, 20)
-    page_obj = paginator.get_page(request.GET.get("page"))
-
-    return render(request, "affiliates/payouts.html", {
-        "profile": profile,
-        "withdrawable_balance": profile.withdrawable_balance,
-        "payouts_in_progress": profile.payouts_in_progress_total,
-        "form": form,
-        "page_obj": page_obj,
-    })
 # ---------------------------------------------------------------------------
 # Referral links - phase 6.
 # ---------------------------------------------------------------------------
@@ -128,6 +125,15 @@ def my_links_view(request):
     profile = request.user.affiliate_profile
 
     links = profile.links.filter(is_active=True).select_related("product")
+    for link in links:
+        # Per-product hierarchy rate (product -> seller -> affiliate's own
+        # negotiated rate -> platform default) - not the old affiliate-only
+        # fallback, since that's a different, less specific number.
+        # link.commission_rate = resolve_affiliate_commission_rate(product=link.product, affiliate=profile)
+        link.click_count = link.total_clicks
+        link.conversion_count = link.clicks.filter(converted=True).count()
+        link.earnings = link.total_earnings
+
     already_linked_ids = links.values_list("product_id", flat=True)
 
     promotable_products = (
@@ -158,37 +164,54 @@ def generate_link_view(request, product_id):
 def bank_details_view(request):
     profile = request.user.affiliate_profile
 
-    try:
-        banks = list_banks()
-    except PaystackTransferError as e:
-        banks = []
-        messages.warning(request, f"Could not load the bank list right now: {e}")
-
     if request.method == "POST":
         form = AffiliateBankDetailsForm(request.POST, instance=profile)
         if form.is_valid():
-            bank_code = form.cleaned_data["bank_code"]
-            account_number = form.cleaned_data["bank_account_number"]
-
-            try:
-                resolved = resolve_bank_account(account_number=account_number, bank_code=bank_code)
-            except PaystackTransferError as e:
-                messages.error(request, f"Could not verify that account: {e}")
-                return render(request, "affiliates/bank_details.html", {"form": form, "banks": banks, "profile": profile})
-
-            bank_name = next((b["name"] for b in banks if b["code"] == bank_code), "")
-
-            profile.bank_code = bank_code
-            profile.bank_name = bank_name
-            profile.bank_account_number = resolved["account_number"]
-            profile.bank_account_name = resolved["account_name"]
-            profile.save(update_fields=[
-                "bank_code", "bank_name", "bank_account_number", "bank_account_name", "updated_at",
-            ])
-
-            messages.success(request, f"Bank details verified and saved for {resolved['account_name']}.")
+            form.save()
+            messages.success(request, "Bank details updated.")
             return redirect("affiliates:dashboard")
     else:
         form = AffiliateBankDetailsForm(instance=profile)
 
-    return render(request, "affiliates/bank_details.html", {"form": form, "banks": banks, "profile": profile})
+    return render(request, "affiliates/bank_details.html", {"form": form})
+
+
+# ---------------------------------------------------------------------------
+# Payouts - Phase 9. The old AffiliatePayout model this used to read from
+# was removed when the ledger rewrite introduced AffiliateCommission/
+# available_earnings. Real balances, no persisted request/history yet -
+# structurally identical to apps.sellers.views' equivalent pair.
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# Payouts - Phase 9. Mirrors apps.sellers.views' equivalent pair.
+# ---------------------------------------------------------------------------
+
+@active_affiliate_required
+def payouts_view(request):
+    profile = request.user.affiliate_profile
+
+    return render(request, "affiliates/payouts.html", {
+        "profile": profile,
+        "available_balance": profile.withdrawable_balance,
+        "pending_earnings": profile.pending_earnings,
+        "payouts": profile.payouts.all(),
+        "has_pending_request": profile.payouts.filter(
+            status__in=[PayoutStatus.PENDING, PayoutStatus.PROCESSING],
+        ).exists(),
+    })
+
+
+@active_affiliate_required
+def payout_request_view(request):
+    profile = request.user.affiliate_profile
+
+    if request.method == "POST":
+        try:
+            amount = Decimal(request.POST.get("amount") or "0")
+            request_affiliate_payout(affiliate=profile, amount=amount)
+            messages.success(request, "Payout requested.")
+        except (InvalidOperation, ValidationFailedError) as e:
+            messages.error(request, str(e) if isinstance(e, ValidationFailedError) else "Enter a valid amount.")
+
+    return redirect("affiliates:payouts")

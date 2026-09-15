@@ -1,0 +1,36 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Rider Dashboard | Top Tech{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto px-4 py-12">
+    <h1 class="text-3xl font-bold text-gray-800 mb-6">Rider Dashboard</h1>
+
+    {% if messages %}
+        <div class="mb-6 space-y-2">
+            {% for message in messages %}
+                <p class="p-3 rounded-lg bg-green-50 text-green-700 text-sm">{{ message }}</p>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <div class="bg-white rounded-xl shadow p-6 sm:p-8 space-y-4">
+        <p><span class="font-semibold">Welcome,</span> {{ profile.full_name }}</p>
+        <p><span class="font-semibold">Service area:</span> {{ profile.service_area }}</p>
+        <p><span class="font-semibold">Vehicle:</span> {{ profile.get_vehicle_type_display }}</p>
+        <p><span class="font-semibold">Verified:</span> {{ profile.verified|yesno:"Yes,No" }}</p>
+        <p><span class="font-semibold">Currently:</span> {{ profile.is_available|yesno:"Available,Unavailable" }}</p>
+
+        <form method="post" action="{% url 'riders:toggle_availability' %}">
+            {% csrf_token %}
+            <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-lg transition">
+                {% if profile.is_available %}Go Unavailable{% else %}Go Available{% endif %}
+            </button>
+        </form>
+
+        <a href="{% url 'riders:bank_details' %}" class="inline-block text-indigo-600 hover:underline text-sm">Update bank details</a>
+    </div>
+
+    <p class="text-gray-500 text-sm mt-6">Assigned deliveries, earnings, and payment history come in a later phase.</p>
+</div>
+{% endblock %}

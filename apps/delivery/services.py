@@ -4,7 +4,7 @@ advancing it through its method-specific stages.
 """
 
 import datetime
-
+from apps.logistics.services import create_delivery_task_for_local_delivery
 from django.urls import reverse
 from django.utils import timezone
 
@@ -40,6 +40,7 @@ def create_delivery(order: Order, method: str) -> Delivery:
         stage=DeliveryStatus.ORDER_CONFIRMED,
         note="Order confirmed and payment received.",
     )
+    create_delivery_task_for_local_delivery(delivery)
 
     return delivery
 

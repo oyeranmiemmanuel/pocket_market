@@ -20,6 +20,22 @@ load_dotenv(BASE_DIR / ".env")
 
 SECRET_KEY = os.environ.get("SECRET_KEY")
 
+
+
+
+# Symmetric key for encrypting sensitive KYC fields (apps.core.fields.EncryptedCharField).
+# Deliberately separate from SECRET_KEY - rotating one shouldn't force rotating the other.
+# Generate with:
+#   python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+# then put it in .env as KYC_FIELD_ENCRYPTION_KEY. Never commit the real value.
+KYC_FIELD_ENCRYPTION_KEY = os.environ.get("KYC_FIELD_ENCRYPTION_KEY")
+
+
+
+
+
+
+
 DEBUG = os.environ.get("DEBUG", "True") == "True"
 
 ALLOWED_HOSTS = [
@@ -40,6 +56,11 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django.contrib.sites",
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',
+    'allauth.socialaccount.providers.google',
     "apps.apps.MainConfig",
     "apps.accounts.apps.AccountsConfig",
     "apps.catalog.apps.CatalogConfig",
@@ -49,13 +70,30 @@ INSTALLED_APPS = [
     "apps.delivery.apps.DeliveryConfig",
     "apps.sellers.apps.SellersConfig",
     "apps.affiliates.apps.AffiliatesConfig",
+    "apps.riders.apps.RidersConfig",
     "apps.notifications.apps.NotificationsConfig",
     "apps.ledger.apps.LedgerConfig",
+    "apps.kyc.apps.KycConfig",
+    "apps.logistics.apps.LogisticsConfig",
 ]
 
+# Required by django-allauth SocialApp.sites.
+# The Site with this ID is used by the allauth Sites framework.
+SITE_ID = 1
+
+# NOTE: these three are for the separate staff/admin login flow (whatever
+# owns the 'custom_login' / 'admin_dashboard' url names) and are left as
+# they were - the customer-facing accounts app below has its own login/
+# signup/Google views and does not use these.
 LOGIN_URL = "custom_login"
 LOGIN_REDIRECT_URL = "admin_dashboard"
 LOGOUT_REDIRECT_URL = "custom_login"
+
+# Where the *customer* signup/login/Google flow sends people, instead of
+# 'home' or a base page - referenced by apps/accounts/views.py and
+# apps/accounts/adapters.py. Change this one value if your products-list
+# url name isn't actually "products_list".
+LOGIN_REDIRECT_URL = "catalog:product_list"
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -66,7 +104,23 @@ MIDDLEWARE = [
     "apps.affiliates.middleware.AffiliateTrackingMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    'allauth.account.middleware.AccountMiddleware',
 ]
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+    'allauth.account.auth_backends.AuthenticationBackend',
+]
+
+# Makes a returning user's "Continue with Google" work even when they
+# originally signed up with username/password on the same email, instead
+# of allauth's default "email already registered" error - see
+# apps/accounts/adapters.py.
+ACCOUNT_ADAPTER = 'apps.accounts.adapters.AccountAdapter'
+SOCIALACCOUNT_ADAPTER = 'apps.accounts.adapters.SocialAccountAdapter'
+SOCIALACCOUNT_AUTO_SIGNUP = True          # skip allauth's own "pick a username" page
+SOCIALACCOUNT_EMAIL_VERIFICATION = 'none'  # Google already verified it
+SOCIALACCOUNT_QUERY_EMAIL = True
+
 
 
 
@@ -104,6 +158,33 @@ DATABASES = {
         "PORT": os.environ.get("DB_PORT", "5432"),
     }
 }
+
+
+
+
+
+
+GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
+GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET")
+
+SOCIALACCOUNT_PROVIDERS = {
+    "google": {
+        "APP": {
+            "client_id": GOOGLE_CLIENT_ID,
+            "secret": GOOGLE_CLIENT_SECRET,
+            "key": "",
+        },
+        "SCOPE": [
+            "profile",
+            "email",
+        ],
+        "AUTH_PARAMS": {
+            "access_type": "online",
+        },
+    }
+}
+
+
 
 
 # Password validation

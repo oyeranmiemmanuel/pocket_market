@@ -41,7 +41,10 @@ tr:hover{
     <tr>
         <th>ID</th>
         <th>Username</th>
+        <th>First Name</th>
+        <th>Last Name</th>
         <th>Email</th>
+        <th>Phone</th>
         <th>Date Joined</th>
     </tr>
 
@@ -49,7 +52,10 @@ tr:hover{
     <tr>
         <td>{{ user.id }}</td>
         <td>{{ user.username }}</td>
+        <td>{{ user.first_name }}</td>
+        <td>{{ user.last_name }}</td>
         <td>{{ user.email }}</td>
+        <td>{{ user.phone }}</td>
         <td>{{ user.date_joined }}</td>
     </tr>
     {% endfor %}

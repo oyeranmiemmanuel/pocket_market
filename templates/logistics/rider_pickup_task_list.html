@@ -1,0 +1,88 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Pickup Tasks | Top Tech{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 py-12">
+    <h1 class="text-3xl font-bold text-gray-800 mb-1">Pickup Tasks</h1>
+    <p class="text-gray-500 mb-8">Collect packages from sellers.</p>
+
+    {% if messages %}
+        <div class="mb-6 space-y-2">
+            {% for message in messages %}
+                <p class="p-3 rounded-lg bg-green-50 text-green-700 text-sm">{{ message }}</p>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <h2 class="text-lg font-semibold text-gray-700 mb-3">My tasks</h2>
+    {% if my_tasks %}
+    <div class="space-y-3 mb-10">
+        {% for task in my_tasks %}
+        <div class="bg-white rounded-xl shadow p-5 flex flex-wrap items-center justify-between gap-3">
+            <div>
+                <p class="font-semibold text-gray-800">{{ task.package.reference }}</p>
+                <p class="text-sm text-gray-500">
+                    {{ task.package.fulfillment.seller.store_name }}
+                    &middot; Order {{ task.package.fulfillment.order.reference }}
+                </p>
+                <span class="text-xs font-semibold px-2 py-1 rounded-full bg-gray-100 text-gray-600">
+                    {{ task.get_status_display }}
+                </span>
+            </div>
+            {% if task.status == 'assigned' %}
+            <div class="flex gap-2">
+                <form method="post" action="{% url 'logistics:rider_mark_collected' task.id %}">
+                    {% csrf_token %}
+                    <button class="bg-green-600 hover:bg-green-700 text-white text-sm font-semibold py-2 px-4 rounded-lg transition">
+                        Mark collected
+                    </button>
+                </form>
+                <form method="post" action="{% url 'logistics:rider_report_exception' task.id %}"
+                      onsubmit="this.reason.value = prompt('Reason?') || ''; return this.reason.value !== '';">
+                    {% csrf_token %}
+                    <input type="hidden" name="reason" value="">
+                    <button name="missing" value="0" class="text-red-600 hover:underline text-sm font-semibold">
+                        Report issue
+                    </button>
+                </form>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-gray-500 mb-10">No active tasks assigned to you.</p>
+    {% endif %}
+
+    <h2 class="text-lg font-semibold text-gray-700 mb-3">Available for pickup</h2>
+    {% if available_tasks %}
+    <div class="space-y-3">
+        {% for task in available_tasks %}
+        <div class="bg-white rounded-xl shadow p-5 flex flex-wrap items-center justify-between gap-3">
+            <div>
+                <p class="font-semibold text-gray-800">{{ task.package.reference }}</p>
+                <p class="text-sm text-gray-500">
+                    {{ task.package.fulfillment.seller.store_name }}
+                    &middot; Order {{ task.package.fulfillment.order.reference }}
+                </p>
+            </div>
+            <form method="post" action="{% url 'logistics:rider_accept_pickup_task' task.id %}">
+                {% csrf_token %}
+                <button class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold py-2 px-4 rounded-lg transition">
+                    Accept
+                </button>
+            </form>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-gray-500">Nothing available right now.</p>
+    {% endif %}
+
+    <p class="text-gray-400 text-xs mt-10">
+        Every approved rider currently sees every unassigned task &mdash; there's no
+        service-area matching yet. First to accept gets it.
+    </p>
+</div>
+{% endblock %}

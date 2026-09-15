@@ -1,6 +1,7 @@
 from django import forms
 from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import UserCreationForm
+from django.core.exceptions import ValidationError
 
 from .models import UserProfile
 
@@ -16,6 +17,26 @@ class RegisterForm(UserCreationForm):
         })
     )
 
+    # first_name / last_name / phone live on UserProfile, not on User, so
+    # they're plain form fields here rather than in Meta.fields below -
+    # register_view() saves them onto the UserProfile it creates.
+    first_name = forms.CharField(
+        max_length=100,
+        required=True,
+        widget=forms.TextInput(attrs={'placeholder': 'First Name'}),
+    )
+    last_name = forms.CharField(
+        max_length=100,
+        required=True,
+        label="Surname",
+        widget=forms.TextInput(attrs={'placeholder': 'Surname'}),
+    )
+    phone = forms.CharField(
+        max_length=20,
+        required=True,
+        widget=forms.TextInput(attrs={'placeholder': 'Phone Number'}),
+    )
+
     class Meta:
         model = User
         fields = (
@@ -24,6 +45,7 @@ class RegisterForm(UserCreationForm):
             'password1',
             'password2',
         )
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -37,7 +59,13 @@ class RegisterForm(UserCreationForm):
             field.widget.attrs.update({
                 "class": classes
             })
-            
+
+    def clean_email(self):
+        email = self.cleaned_data['email'].strip().lower()
+        if User.objects.filter(email__iexact=email).exists():
+            raise ValidationError("An account with this email already exists.")
+        return email
+
     def save(self, commit=True):
         user = super().save(commit=False)
         user.email = self.cleaned_data['email']

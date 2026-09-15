@@ -31,9 +31,13 @@ urlpatterns = [
     path("shop/", include("apps.catalog.urls")),
     path("sellers/", include("apps.sellers.urls")),
     path("affiliates/", include("apps.affiliates.urls")),
+    path("kyc/", include("apps.kyc.urls")),
+    path("riders/", include("apps.riders.urls")),
     path("notifications/", include("apps.notifications.urls")),
     path("store/", include("apps.sellers.public_urls")),
     path('', include('apps.urls')),
+    path('accounts/', include('allauth.urls')),
+    path("logistics/", include("apps.logistics.urls")),
 ]
 
 if settings.DEBUG:

@@ -1,0 +1,22 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Rider Application Status | Top Tech{% endblock %}
+
+{% block content %}
+<div class="max-w-xl mx-auto px-4 py-12">
+    <h1 class="text-3xl font-bold text-gray-800 mb-6">Your Rider Application</h1>
+
+    <div class="bg-white rounded-xl shadow p-6 sm:p-8 space-y-3">
+        <p><span class="font-semibold">Status:</span> {{ profile.get_status_display }}</p>
+        <p><span class="font-semibold">Full name:</span> {{ profile.full_name }}</p>
+        <p><span class="font-semibold">Service area:</span> {{ profile.service_area }}</p>
+        <p><span class="font-semibold">Vehicle:</span> {{ profile.get_vehicle_type_display }}</p>
+        {% if profile.status == "rejected" and profile.rejection_reason %}
+            <p class="text-red-600"><span class="font-semibold">Reason:</span> {{ profile.rejection_reason }}</p>
+        {% endif %}
+        {% if profile.status == "approved" %}
+            <a href="{% url 'riders:dashboard' %}" class="inline-block mt-4 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-lg transition">Go to Dashboard</a>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

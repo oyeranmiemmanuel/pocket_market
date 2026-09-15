@@ -77,13 +77,8 @@ def custom_404(request, exception):
     return render(request, '404.html', status=404)
 
 # ====================== AUTHENTICATION ======================
-
 def home(request):
-    # If user is not logged in, send them to signup
-    if not request.user.is_authenticated:
-        return redirect('accounts:register')
-
-    return render(request, 'core/base.html')
+    return redirect("catalog:product_list")
 
 
 

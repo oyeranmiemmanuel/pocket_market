@@ -12,7 +12,7 @@ class UserRole(models.TextChoices):
     STAFF = "STAFF", "Staff"
     SELLER = "SELLER", "Seller"
     AFFILIATE = "AFFILIATE", "Affiliate"
-
+    RIDER = "RIDER", "Delivery Rider"
 
 class PaymentStatus(models.TextChoices):
     PENDING = "PENDING", "Pending"
@@ -93,3 +93,22 @@ class RefundStatus(models.TextChoices):
     PROCESSING = "processing", "Processing"
     PROCESSED = "processed", "Processed"
     FAILED = "failed", "Failed"
+
+
+class KYCStatus(models.TextChoices):
+    """
+    Shared by BuyerKYC/SellerKYC/AffiliateKYC/RiderKYC (apps.kyc) - one
+    status set for all four subject types, the same way PayoutStatus is
+    shared between SellerPayout/AffiliatePayout above. Deliberately NOT
+    the same set as SellerStatus/AffiliateStatus/RiderStatus: those track
+    "is this account allowed to trade/deliver"; this tracks "have we
+    collected and confirmed this party's KYC information" - two
+    lifecycles the phase-1 spec keeps intentionally decoupled.
+    """
+
+    NOT_SUBMITTED = "not_submitted", "Not Submitted"
+    SUBMITTED = "submitted", "Submitted"
+    UNDER_REVIEW = "under_review", "Under Review"
+    CONFIRMED = "confirmed", "Confirmed"
+    REJECTED = "rejected", "Rejected"
+    RESUBMISSION = "resubmission", "Resubmission Required"

@@ -23,6 +23,7 @@ from apps.notifications.models import NotificationCategory
 from apps.notifications.services import create_notification, notify_sellers_of_new_order
 from apps.orders.models import Order, OrderStatus
 
+from apps.logistics.services import create_seller_fulfillments
 from .models import Payment, PaymentStatus
 
 PAYSTACK_INITIALIZE_URL = "https://api.paystack.co/transaction/initialize"
@@ -195,7 +196,7 @@ def _finalize_successful_payment(payment: Payment):
     # (see apps.delivery.models: local delivery gets a shorter, faster-feeling
     # set of stages than shipping does).
     create_delivery(order, order.delivery_method)
-
+    create_seller_fulfillments(order)
     # Inventory: decrement stock now, not at order-creation time, so an
     # abandoned/unpaid order never holds stock hostage (16_INVENTORY.md).
     for item in order.items.select_related("product"):

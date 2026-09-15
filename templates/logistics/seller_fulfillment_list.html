@@ -1,0 +1,79 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Pickup & Fulfillments | Top Tech{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 py-12">
+
+    <h1 class="text-3xl font-bold text-gray-800 mb-1">{{ profile.store_name }}</h1>
+    <p class="text-gray-500 mb-8">Pickup & Fulfillments</p>
+
+    {% include 'sellers/_nav.html' with active='fulfillments' %}
+
+    {% if messages %}
+        <div class="mb-6 space-y-2">
+            {% for message in messages %}
+                <p class="p-3 rounded-lg bg-green-50 text-green-700 text-sm">{{ message }}</p>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <p class="text-gray-500 text-sm mb-6">
+        Each row below is your slice of one order. Mark it ready once everything
+        in it is packed &mdash; a rider will then be able to pick it up.
+    </p>
+
+    {% if fulfillments %}
+    <div class="bg-white rounded-xl shadow overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-left text-xs text-gray-400 uppercase border-b border-gray-100">
+                        <th class="px-5 py-4 font-semibold">Order</th>
+                        <th class="px-5 py-4 font-semibold">Status</th>
+                        <th class="px-5 py-4 font-semibold">Packages</th>
+                        <th class="px-5 py-4 font-semibold">Ready At</th>
+                        <th class="px-5 py-4 font-semibold"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for f in fulfillments %}
+                    <tr class="border-b border-gray-50">
+                        <td class="px-5 py-4 font-medium text-gray-800">{{ f.order.reference }}</td>
+                        <td class="px-5 py-4">
+                            <span class="px-2 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">
+                                {{ f.get_status_display }}
+                            </span>
+                        </td>
+                        <td class="px-5 py-4 text-gray-500">
+                            {% for pkg in f.packages.all %}
+                                {{ pkg.reference }}{% if not forloop.last %}, {% endif %}
+                            {% empty %}
+                                &mdash;
+                            {% endfor %}
+                        </td>
+                        <td class="px-5 py-4 text-gray-500">{{ f.ready_at|default:"—" }}</td>
+                        <td class="px-5 py-4 text-right">
+                            {% if f.status == 'pending' %}
+                            <form method="post" action="{% url 'logistics:mark_fulfillment_ready' f.id %}">
+                                {% csrf_token %}
+                                <button type="submit" class="text-indigo-600 hover:underline font-semibold">
+                                    Mark ready for pickup
+                                </button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <div class="bg-white rounded-xl shadow p-8 text-center text-gray-500">
+        Nothing to fulfil yet &mdash; a fulfillment appears here once one of your
+        items is part of a paid order.
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

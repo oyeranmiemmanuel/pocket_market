@@ -26,6 +26,7 @@ urlpatterns = [
     path("products/<uuid:pk>/edit/", views.product_edit_view, name="product_edit"),
     path("products/<uuid:pk>/delete/", views.product_delete_view, name="product_delete"),
     path("products/<uuid:pk>/toggle-active/", views.product_toggle_active_view, name="product_toggle_active"),
+    path("products/<uuid:pk>/update-stock/", views.product_update_stock_view, name="product_update_stock"),
 
     # Phase 4 - order management
     path("orders/", views.order_item_list_view, name="order_item_list"),

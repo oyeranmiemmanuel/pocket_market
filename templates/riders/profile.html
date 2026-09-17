@@ -1,0 +1,30 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Rider Profile | Top Tech{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto px-4 py-12">
+    <h1 class="text-3xl font-bold text-gray-800 mb-1">Rider Dashboard</h1>
+    <p class="text-gray-500 mb-8">{{ profile.full_name }}</p>
+
+    {% include 'riders/_nav.html' with active='profile' %}
+
+    {% if messages %}
+        <div class="mb-6 space-y-2">
+            {% for message in messages %}
+                <p class="p-3 rounded-lg bg-green-50 text-green-700 text-sm">{{ message }}</p>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <div class="bg-white rounded-xl shadow p-6 sm:p-8">
+        <form method="post" class="space-y-5">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-lg transition">
+                Save Changes
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}

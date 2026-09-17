@@ -5,9 +5,15 @@
 {% block content %}
 <div class="max-w-xl mx-auto px-4 py-12">
 
-    <h1 class="text-3xl font-bold text-gray-800 mb-2">Become an Affiliate</h1>
+    <h1 class="text-3xl font-bold text-gray-800 mb-2">
+        {% if is_resubmission %}Resubmit Your Application{% else %}Become an Affiliate{% endif %}
+    </h1>
     <p class="text-gray-500 mb-8">
-        Earn a commission for sales you refer. No store to set up - just apply and start sharing links once approved.
+        {% if is_resubmission %}
+            Update your details below and resubmit for review.
+        {% else %}
+            Earn a commission for sales you refer. Tell us a bit about yourself and we'll review it.
+        {% endif %}
     </p>
 
     {% if messages %}
@@ -18,22 +24,54 @@
         </div>
     {% endif %}
 
-    <div class="bg-white rounded-xl shadow p-6 sm:p-8 text-center">
-        <div class="w-16 h-16 rounded-full bg-indigo-50 flex items-center justify-center mx-auto mb-5">
-            <i class="fa-solid fa-handshake text-2xl text-indigo-600"></i>
-        </div>
-        <p class="text-gray-600 mb-6">
-            Applying just registers your account for affiliate access - a normal account doesn't have this by default.
-            We'll review it and let you know.
-        </p>
-        <form method="post">
+    <div class="bg-white rounded-xl shadow p-6 sm:p-8">
+        <form method="post" class="space-y-5">
             {% csrf_token %}
+
+            <div>
+                <label for="{{ form.full_name.id_for_label }}" class="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Full name</label>
+                {{ form.full_name.errors }}
+                {{ form.full_name }}
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div>
+                    <label for="{{ form.phone.id_for_label }}" class="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Phone</label>
+                    {{ form.phone.errors }}
+                    {{ form.phone }}
+                </div>
+                <div>
+                    <label for="{{ form.contact_email.id_for_label }}" class="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Contact email</label>
+                    {{ form.contact_email.errors }}
+                    {{ form.contact_email }}
+                    <p class="text-xs text-gray-400 mt-1">Optional - defaults to your account email.</p>
+                </div>
+            </div>
+
+            <div>
+                <label for="{{ form.promotional_channels.id_for_label }}" class="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Promotional channels</label>
+                {{ form.promotional_channels.errors }}
+                {{ form.promotional_channels }}
+                <p class="text-xs text-gray-400 mt-1">Where do you plan to promote products? (blog, Instagram, YouTube, etc.)</p>
+            </div>
+
             <button type="submit"
-                    class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-6 py-3 rounded-lg transition">
-                Apply Now
+                    class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-lg transition">
+                {% if is_resubmission %}Resubmit Application{% else %}Submit Application{% endif %}
             </button>
         </form>
     </div>
 
 </div>
+
+<style>
+    form input[type="text"], form input[type="email"], form input[type="tel"],
+    form select, form textarea {
+        width: 100%;
+        padding: 0.625rem 0.75rem;
+        border: 1px solid #d1d5db;
+        border-radius: 0.5rem;
+        font-size: 0.875rem;
+    }
+</style>
 {% endblock %}

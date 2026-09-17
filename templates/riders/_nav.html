@@ -1,0 +1,43 @@
+{# Shared tab bar for the rider dashboard area. Mirrors sellers/_nav.html and affiliates/_nav.html. #}
+<div class="flex gap-1 overflow-x-auto mb-8 border-b border-gray-200">
+    <a href="{% url 'riders:dashboard' %}"
+       class="whitespace-nowrap px-4 py-3 text-sm font-semibold border-b-2 transition
+              {% if active == 'overview' %}border-indigo-600 text-indigo-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
+        Overview
+    </a>
+    <a href="{% url 'riders:active_delivery' %}"
+       class="whitespace-nowrap px-4 py-3 text-sm font-semibold border-b-2 transition
+              {% if active == 'active_delivery' %}border-indigo-600 text-indigo-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
+        Active Delivery
+    </a>
+    <a href="{% url 'logistics:rider_pickup_task_list' %}"
+       class="whitespace-nowrap px-4 py-3 text-sm font-semibold border-b-2 transition
+              {% if active == 'pickup_tasks' %}border-indigo-600 text-indigo-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
+        Pickup Tasks
+    </a>
+    <a href="{% url 'logistics:rider_delivery_task_list' %}"
+       class="whitespace-nowrap px-4 py-3 text-sm font-semibold border-b-2 transition
+              {% if active == 'delivery_tasks' %}border-indigo-600 text-indigo-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
+        Delivery Tasks
+    </a>
+    <a href="{% url 'riders:activity' %}"
+       class="whitespace-nowrap px-4 py-3 text-sm font-semibold border-b-2 transition
+              {% if active == 'activity' %}border-indigo-600 text-indigo-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
+        Activity
+    </a>
+    <a href="{% url 'riders:earnings' %}"
+       class="whitespace-nowrap px-4 py-3 text-sm font-semibold border-b-2 transition
+              {% if active == 'earnings' %}border-indigo-600 text-indigo-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
+        Earnings
+    </a>
+    <a href="{% url 'riders:profile' %}"
+       class="whitespace-nowrap px-4 py-3 text-sm font-semibold border-b-2 transition
+              {% if active == 'profile' %}border-indigo-600 text-indigo-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
+        Profile
+    </a>
+    <a href="{% url 'riders:bank_details' %}"
+       class="whitespace-nowrap px-4 py-3 text-sm font-semibold border-b-2 transition
+              {% if active == 'bank' %}border-indigo-600 text-indigo-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
+        Bank Details
+    </a>
+</div>

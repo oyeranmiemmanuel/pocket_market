@@ -1,0 +1,23 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Rider Earnings | Top Tech{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto px-4 py-12">
+    <h1 class="text-3xl font-bold text-gray-800 mb-1">Rider Dashboard</h1>
+    <p class="text-gray-500 mb-8">{{ profile.full_name }}</p>
+
+    {% include 'riders/_nav.html' with active='earnings' %}
+
+    <div class="bg-white rounded-xl shadow p-6 sm:p-8 text-center">
+        <i class="fa-regular fa-clock text-3xl text-gray-300 mb-4"></i>
+        <h2 class="text-lg font-semibold text-gray-800 mb-2">Earnings tracking isn't wired up yet</h2>
+        <p class="text-gray-500 text-sm max-w-md mx-auto">
+            Per-delivery earnings and payment history aren't calculated on the
+            backend yet, so nothing real can be shown here. This page will
+            switch on automatically once the delivery-earnings ledger ships -
+            no placeholder numbers are shown in the meantime.
+        </p>
+    </div>
+</div>
+{% endblock %}

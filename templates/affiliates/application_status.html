@@ -44,10 +44,14 @@
             </div>
             <h2 class="text-xl font-bold text-gray-800 mb-2">Application Rejected</h2>
             {% if profile.rejection_reason %}
-                <p class="text-gray-500">{{ profile.rejection_reason }}</p>
+                <p class="text-gray-500 mb-6">{{ profile.rejection_reason }}</p>
             {% else %}
-                <p class="text-gray-500">Your application wasn't approved this time.</p>
+                <p class="text-gray-500 mb-6">Your application wasn't approved this time.</p>
             {% endif %}
+            <a href="{% url 'affiliates:apply' %}"
+               class="inline-block bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-6 py-3 rounded-lg transition">
+                Resubmit Application
+            </a>
 
         {% elif profile.status == 'suspended' %}
             <div class="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-5">
@@ -55,13 +59,73 @@
             </div>
             <h2 class="text-xl font-bold text-gray-800 mb-2">Account Suspended</h2>
             {% if profile.rejection_reason %}
-                <p class="text-gray-500">{{ profile.rejection_reason }}</p>
+                <p class="text-gray-500 mb-6">{{ profile.rejection_reason }}</p>
             {% else %}
-                <p class="text-gray-500">Your affiliate account has been suspended.</p>
+                <p class="text-gray-500 mb-6">Your affiliate account has been suspended.</p>
             {% endif %}
+            <a href="{% url 'contact' %}"
+               class="inline-block bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-6 py-3 rounded-lg transition">
+                Contact Support
+            </a>
         {% endif %}
 
     </div>
+
+    {% if profile.full_name or profile.phone or profile.promotional_channels %}
+        <div class="bg-white rounded-xl shadow p-6 sm:p-8 mt-6 text-left">
+            <h2 class="text-lg font-bold text-gray-800 mb-4">Your Details</h2>
+            <dl class="space-y-3 text-sm">
+                <div class="flex justify-between gap-4">
+                    <dt class="text-gray-500">Full name</dt>
+                    <dd class="text-gray-800 font-medium text-right">{{ profile.full_name|default:"—" }}</dd>
+                </div>
+                <div class="flex justify-between gap-4">
+                    <dt class="text-gray-500">Phone</dt>
+                    <dd class="text-gray-800 font-medium text-right">{{ profile.phone|default:"—" }}</dd>
+                </div>
+                <div class="flex justify-between gap-4">
+                    <dt class="text-gray-500">Contact email</dt>
+                    <dd class="text-gray-800 font-medium text-right">{{ profile.contact_email|default:profile.user.email }}</dd>
+                </div>
+                <div class="flex flex-col gap-1">
+                    <dt class="text-gray-500">Promotional channels</dt>
+                    <dd class="text-gray-800">{{ profile.promotional_channels|default:"—"|linebreaksbr }}</dd>
+                </div>
+            </dl>
+        </div>
+    {% endif %}
+
+    {% if profile.status == 'pending' or profile.status == 'active' %}
+        <div class="bg-white rounded-xl shadow p-6 sm:p-8 mt-6">
+            <h2 class="text-lg font-bold text-gray-800 mb-1">Account Verification</h2>
+            <p class="text-gray-500 text-sm mb-4">
+                Separate from your application review - this confirms your identity and details.
+            </p>
+
+            {% with kyc_status=profile.kyc.status|default:'not_submitted' %}
+                <div class="flex items-center justify-between gap-4 p-4 rounded-lg bg-gray-50">
+                    <div>
+                        <p class="text-sm font-semibold text-gray-700">
+                            {% if kyc_status == 'not_submitted' %}Not submitted
+                            {% elif kyc_status == 'submitted' %}Submitted
+                            {% elif kyc_status == 'under_review' %}Under Review
+                            {% elif kyc_status == 'confirmed' %}Verified
+                            {% elif kyc_status == 'rejected' %}Rejected
+                            {% elif kyc_status == 'resubmission' %}Resubmission Required
+                            {% endif %}
+                        </p>
+                        {% if profile.kyc.rejection_reason %}
+                            <p class="text-xs text-gray-500 mt-1">{{ profile.kyc.rejection_reason }}</p>
+                        {% endif %}
+                    </div>
+                    <a href="{% url 'kyc:affiliate' %}"
+                       class="whitespace-nowrap text-indigo-600 font-semibold text-sm hover:underline">
+                        {% if kyc_status == 'not_submitted' or kyc_status == 'resubmission' %}Start Verification{% else %}View Details{% endif %}
+                    </a>
+                </div>
+            {% endwith %}
+        </div>
+    {% endif %}
 
 </div>
 {% endblock %}

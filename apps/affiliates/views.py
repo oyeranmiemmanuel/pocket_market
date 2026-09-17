@@ -9,38 +9,58 @@ from apps.catalog.models import Product
 from apps.core.enums import PayoutStatus
 from apps.core.exceptions import ValidationFailedError
 
-from .forms import AffiliateBankDetailsForm
+from .forms import AffiliateApplicationForm, AffiliateBankDetailsForm
+from .models import AffiliateStatus
 from .permissions import active_affiliate_required
 from .services import (
+    affiliate_analytics,
     apply_for_affiliate,
     generate_affiliate_link,
     request_affiliate_payout,
     resolve_affiliate_commission_rate,
+    resubmit_affiliate_application,
 )
 
 
 @login_required(login_url="accounts:login")
 def apply_view(request):
     """
-    No form fields needed to apply - unlike sellers (who need store
-    details), becoming an affiliate is just an opt-in; the affiliate
-    code is generated automatically.
+    Spec section 3 - collects personal/business info, contact info, and
+    promotional channels. A REJECTED applicant gets the same form back,
+    pre-filled, so they can fix whatever was wrong and resubmit -
+    mirrors apps.sellers.views.apply_view.
     """
     existing = getattr(request.user, "affiliate_profile", None)
-    if existing is not None:
+
+    is_resubmission = existing is not None and existing.status == AffiliateStatus.REJECTED
+    if existing is not None and not is_resubmission:
         return redirect("affiliates:application_status")
 
     if request.method == "POST":
-        try:
-            apply_for_affiliate(user=request.user)
-        except ValidationFailedError as e:
-            messages.error(request, str(e))
-            return redirect("affiliates:apply")
+        form = AffiliateApplicationForm(request.POST)
+        if form.is_valid():
+            try:
+                if is_resubmission:
+                    resubmit_affiliate_application(profile=existing, **form.cleaned_data)
+                else:
+                    apply_for_affiliate(user=request.user, **form.cleaned_data)
+            except ValidationFailedError as e:
+                messages.error(request, str(e))
+                return redirect("affiliates:apply")
 
-        messages.success(request, "Application submitted! We'll review it shortly.")
-        return redirect("affiliates:application_status")
+            messages.success(request, "Application submitted! We'll review it shortly.")
+            return redirect("affiliates:application_status")
+    elif is_resubmission:
+        form = AffiliateApplicationForm(initial={
+            "full_name": existing.full_name,
+            "phone": existing.phone,
+            "contact_email": existing.contact_email,
+            "promotional_channels": existing.promotional_channels,
+        })
+    else:
+        form = AffiliateApplicationForm()
 
-    return render(request, "affiliates/apply.html")
+    return render(request, "affiliates/apply.html", {"form": form, "is_resubmission": is_resubmission})
 
 
 @login_required(login_url="accounts:login")
@@ -141,11 +161,48 @@ def my_links_view(request):
         .exclude(pk__in=already_linked_ids)
         .select_related("category")
     )
+    for product in promotable_products:
+        product.affiliate_commission_rate = resolve_affiliate_commission_rate(product=product, affiliate=profile)
+        product.estimated_commission = (product.price * product.affiliate_commission_rate / 100).quantize(Decimal("0.01"))
 
     return render(request, "affiliates/links.html", {
         "profile": profile,
         "links": links,
         "promotable_products": promotable_products,
+    })
+
+
+@active_affiliate_required
+def link_detail_view(request, link_id):
+    """
+    Spec section 11 - the single-link "view performance" page: product
+    image/title/URL, the affiliate's own tracking URL, commission info,
+    and this link's own click/conversion/earnings numbers. Scoped to
+    this affiliate's own links only - a link_id belonging to another
+    affiliate 404s rather than leaking their performance data.
+    """
+    profile = request.user.affiliate_profile
+    link = get_object_or_404(
+        profile.links.select_related("product"), pk=link_id,
+    )
+
+    return render(request, "affiliates/link_detail.html", {
+        "profile": profile,
+        "link": link,
+        "commission_rate": resolve_affiliate_commission_rate(product=link.product, affiliate=profile),
+        "click_count": link.total_clicks,
+        "conversion_count": link.clicks.filter(converted=True).count(),
+        "earnings": link.total_earnings,
+    })
+
+
+@active_affiliate_required
+def analytics_view(request):
+    """Spec section 12 - clicks/conversions over time, earnings breakdown, top products."""
+    profile = request.user.affiliate_profile
+    return render(request, "affiliates/analytics.html", {
+        "profile": profile,
+        "analytics": affiliate_analytics(profile),
     })
 
 

@@ -128,6 +128,16 @@ class SellerProfile(BaseModel):
         return self._earning_sum(EarningStatus.PENDING, EarningStatus.CONFIRMED)
 
     @property
+    def pending_only_earnings(self):
+        """Just-created earnings, not yet even at the CONFIRMED/hold stage. Split out from pending_earnings for the dashboard's Earnings Breakdown chart (spec section 5)."""
+        return self._earning_sum(EarningStatus.PENDING)
+
+    @property
+    def held_earnings(self):
+        """CONFIRMED but not yet AVAILABLE - within the refund/hold window. The dashboard chart's "Held" bucket."""
+        return self._earning_sum(EarningStatus.CONFIRMED)
+
+    @property
     def withdrawable_balance(self):
         """
         Cleared AVAILABLE earnings not already reserved by an unresolved

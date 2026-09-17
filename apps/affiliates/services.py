@@ -56,12 +56,13 @@ def _generate_unique_affiliate_code() -> str:
     raise ValidationFailedError("Could not generate a unique affiliate code, try again.")
 
 
-def apply_for_affiliate(*, user):
+def apply_for_affiliate(*, user, full_name, phone, contact_email, promotional_channels):
     """
     Create a pending affiliate application. One per user - raises if
     they already have a profile (regardless of its current status), so
     a rejected/suspended affiliate can't just spam new applications;
-    that should go through re-review of the existing profile instead.
+    that goes through resubmit_affiliate_application instead
+    (REJECTED only).
     """
     if AffiliateProfile.objects.filter(user=user).exists():
         raise ValidationFailedError("You already have an affiliate application on file.")
@@ -69,8 +70,39 @@ def apply_for_affiliate(*, user):
     profile = AffiliateProfile.objects.create(
         user=user,
         affiliate_code=_generate_unique_affiliate_code(),
+        full_name=full_name,
+        phone=phone,
+        contact_email=contact_email,
+        promotional_channels=promotional_channels,
         status=AffiliateStatus.PENDING,
     )
+    return profile
+
+
+def resubmit_affiliate_application(*, profile, full_name, phone, contact_email, promotional_channels):
+    """
+    Spec section 3 - a REJECTED applicant can update their details and
+    resubmit for another review, reusing the same AffiliateProfile row
+    (and its affiliate_code) rather than creating a new one. Mirrors
+    apps.sellers.services.resubmit_seller_application. Only valid from
+    REJECTED - SUSPENDED is an admin action, not something self-
+    resubmission should be able to undo.
+    """
+    if profile.status != AffiliateStatus.REJECTED:
+        raise ValidationFailedError("Only a rejected application can be resubmitted.")
+
+    profile.full_name = full_name
+    profile.phone = phone
+    profile.contact_email = contact_email
+    profile.promotional_channels = promotional_channels
+    profile.status = AffiliateStatus.PENDING
+    profile.rejection_reason = ""
+    profile.reviewed_at = None
+    profile.reviewed_by = None
+    profile.save(update_fields=[
+        "full_name", "phone", "contact_email", "promotional_channels",
+        "status", "rejection_reason", "reviewed_at", "reviewed_by",
+    ])
     return profile
 
 
@@ -635,3 +667,65 @@ def send_affiliate_payout(*, payout):
     payout.provider_reference = response.get("transfer_code", "")
     payout.save(update_fields=["status", "provider_reference", "updated_at"])
     return payouts
+
+
+# ---------------------------------------------------------------------------
+# Analytics (spec section 12) - read-only aggregation for the affiliate's
+# own clicks/commissions. Deliberately simple day-bucketed counts over a
+# fixed recent window, computed at request time - no new model, since
+# AffiliateClick/AffiliateCommission.created_at already carry everything
+# needed and this is read far less often than it's written.
+# ---------------------------------------------------------------------------
+
+def affiliate_analytics(profile, days: int = 30):
+    """
+    Chart datasets for the affiliate analytics page (spec section 12).
+    Mirrors apps.sellers.analytics's {"labels": [...], "values": [...]}
+    shape - real rows only (AffiliateClick/AffiliateCommission), empty
+    series render as an empty state in the template rather than a blank
+    chart.
+    """
+    from django.db.models import Count, Sum
+    from django.db.models.functions import TruncDate
+
+    since = timezone.now() - timedelta(days=days)
+
+    def _daily(queryset):
+        rows = (
+            queryset.filter(created_at__gte=since)
+            .annotate(bucket=TruncDate("created_at"))
+            .values("bucket")
+            .annotate(total=Count("id"))
+            .order_by("bucket")
+        )
+        return {
+            "labels": [row["bucket"].strftime("%b %-d") for row in rows],
+            "values": [row["total"] for row in rows],
+        }
+
+    clicks_by_day = _daily(profile.clicks)
+    conversions_by_day = _daily(profile.clicks.filter(converted=True))
+
+    commissions = profile.commissions.filter(reversal_of__isnull=True).exclude(status=CommissionStatus.CANCELLED)
+    top_products = (
+        commissions.values("order_item__product_name")
+        .annotate(earnings=Sum("commission_amount"), conversions=Count("id"))
+        .order_by("-earnings")[:5]
+    )
+
+    return {
+        "clicks_by_day": clicks_by_day,
+        "conversions_by_day": conversions_by_day,
+        "earnings_breakdown": {
+            "labels": ["Pending", "Available", "Withdrawn"],
+            "values": [
+                float(profile.pending_earnings),
+                float(profile.available_earnings),
+                float(profile.paid_earnings),
+            ],
+        },
+        "top_products": {
+            "labels": [row["order_item__product_name"] for row in top_products],
+            "values": [float(row["earnings"] or 0) for row in top_products],
+        },
+    }

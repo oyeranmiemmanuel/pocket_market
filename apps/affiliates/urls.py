@@ -13,6 +13,10 @@ urlpatterns = [
     # Phase 6 - referral tracking
     path("links/", views.my_links_view, name="my_links"),
     path("links/<uuid:product_id>/generate/", views.generate_link_view, name="generate_link"),
+    path("links/<uuid:link_id>/performance/", views.link_detail_view, name="link_detail"),
+
+    # Analytics
+    path("analytics/", views.analytics_view, name="analytics"),
 
     # Phase 7 - commission calculations
     path("conversions/", views.my_conversions_view, name="my_conversions"),

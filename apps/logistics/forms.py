@@ -1,6 +1,6 @@
 from django import forms
 
-from .models import RiderProfile, RiderVehicleType
+from apps.riders.models import RiderProfile, RiderVehicleType
 
 
 class RiderApplicationForm(forms.Form):

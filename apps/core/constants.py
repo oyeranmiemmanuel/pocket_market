@@ -30,6 +30,21 @@ PLATFORM_COMMISSION_RATE_DEFAULT = 10  # percent
 # payouts on referred sales.
 PLATFORM_AFFILIATE_COMMISSION_RATE_DEFAULT = 5  # percent
 
+# Seller-facing bounds (Marketplace Frontend Roadmap, section 6): a
+# seller may only ever set Product.affiliate_commission_rate somewhere in
+# this window. Enforced in three places - HTML min/max + JS clamp on the
+# seller product form (UX only), Product.affiliate_commission_rate's
+# validators (apps.catalog.models), and SellerProductForm.clean_affiliate_commission_rate
+# - so the range can never be bypassed just by disabling JS or posting a
+# raw form.
+AFFILIATE_COMMISSION_RATE_MIN = 5    # percent
+AFFILIATE_COMMISSION_RATE_MAX = 80   # percent
+
+# Pre-filled starting point for the commission slider when a seller is
+# creating a brand new product (their first product has no prior rate to
+# default to). Purely a UX nicety - has no bearing on validation.
+AFFILIATE_COMMISSION_RATE_SUGGESTED_DEFAULT = 20  # percent
+
 
 # Name of the signed cookie AffiliateTrackingMiddleware sets when a
 # visitor arrives via ?ref=<affiliate_code>. Its lifetime is

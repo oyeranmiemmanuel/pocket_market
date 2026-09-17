@@ -56,19 +56,30 @@
                         </td>
                         <td class="px-5 py-4 text-gray-500">{{ product.category.name|default:"-" }}</td>
                         <td class="px-5 py-4 font-semibold text-gray-800">₦{{ product.price }}</td>
-                        <td class="px-5 py-4 text-gray-600">{{ product.stock }}</td>
+                        <td class="px-5 py-4">
+                            <form class="stock-update-form flex items-center gap-1.5" method="post"
+                                  action="{% url 'sellers:product_update_stock' product.pk %}">
+                                {% csrf_token %}
+                                <input type="number" name="stock" min="0" step="1" inputmode="numeric"
+                                       value="{{ product.stock }}" data-original-value="{{ product.stock }}"
+                                       class="stock-input w-16 px-2 py-1 border border-gray-200 rounded text-sm text-gray-700 focus:border-indigo-400 focus:outline-none">
+                                <button type="submit" class="stock-save-btn hidden text-indigo-600 hover:text-indigo-700" title="Save stock">
+                                    <i class="fa-solid fa-check text-xs"></i>
+                                </button>
+                            </form>
+                        </td>
                         <td class="px-5 py-4">
                             {% if product.is_active %}
-                                <span class="inline-block px-2.5 py-1 rounded-full text-xs font-semibold bg-green-50 text-green-700">Active</span>
+                                <span class="status-badge inline-block px-2.5 py-1 rounded-full text-xs font-semibold bg-green-50 text-green-700">Active</span>
                             {% else %}
-                                <span class="inline-block px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-500">Inactive</span>
+                                <span class="status-badge inline-block px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-500">Inactive</span>
                             {% endif %}
                         </td>
                         <td class="px-5 py-4 text-right whitespace-nowrap">
                             <a href="{% url 'sellers:product_edit' product.pk %}" class="text-indigo-600 hover:underline text-xs font-semibold mr-3">Edit</a>
-                            <form action="{% url 'sellers:product_toggle_active' product.pk %}" method="post" class="inline mr-3">
+                            <form action="{% url 'sellers:product_toggle_active' product.pk %}" method="post" class="toggle-active-form inline mr-3">
                                 {% csrf_token %}
-                                <button type="submit" class="text-gray-500 hover:underline text-xs font-semibold">
+                                <button type="submit" class="toggle-active-btn text-gray-500 hover:underline text-xs font-semibold">
                                     {% if product.is_active %}Deactivate{% else %}Activate{% endif %}
                                 </button>
                             </form>
@@ -104,4 +115,133 @@
     {% endif %}
 
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Product list AJAX: status toggle (Activate/Deactivate) and inline
+// stock editing (spec section 7). Both endpoints are also real <form>
+// POSTs, so everything here still works with JS disabled - this just
+// intercepts the submit to avoid a full page reload and update the row
+// in place, matching the pattern already used for add-to-cart
+// (templates/core/base.html) and cart quantity updates
+// (templates/cart/cart_detail.html).
+(function () {
+    function getCookie(name) {
+        const match = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+        return match ? match.pop() : '';
+    }
+
+    function showToast(message, isError) {
+        if (!message) return;
+        const toast = document.createElement('div');
+        toast.textContent = message;
+        toast.className =
+            'fixed bottom-6 right-6 text-white px-5 py-3 rounded-lg shadow-xl z-50 text-sm ' +
+            (isError ? 'bg-red-600' : 'bg-gray-900');
+        document.body.appendChild(toast);
+        setTimeout(function () { toast.remove(); }, 2500);
+    }
+
+    // ---- Status toggle (Activate/Deactivate) ----
+    document.addEventListener('submit', function (e) {
+        const form = e.target;
+        if (!form.classList || !form.classList.contains('toggle-active-form')) return;
+
+        e.preventDefault();
+        const btn = form.querySelector('.toggle-active-btn');
+        const row = form.closest('tr');
+        const badge = row ? row.querySelector('.status-badge') : null;
+        const originalLabel = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = '...';
+
+        fetch(form.action, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': getCookie('csrftoken'),
+            },
+            body: new FormData(form),
+        })
+            .then(function (resp) { return resp.json(); })
+            .then(function (data) {
+                if (!data.ok) {
+                    showToast(data.error || 'Could not update status.', true);
+                    btn.textContent = originalLabel;
+                    return;
+                }
+                if (badge) {
+                    badge.textContent = data.is_active ? 'Active' : 'Inactive';
+                    badge.className = 'status-badge inline-block px-2.5 py-1 rounded-full text-xs font-semibold ' +
+                        (data.is_active ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500');
+                }
+                btn.textContent = data.is_active ? 'Deactivate' : 'Activate';
+                showToast(data.message);
+            })
+            .catch(function () {
+                showToast('Could not update status.', true);
+                btn.textContent = originalLabel;
+            })
+            .finally(function () {
+                btn.disabled = false;
+            });
+    });
+
+    // ---- Inline stock edit ----
+    // The Save (checkmark) button only appears once the input differs
+    // from its last-saved value, so a row that hasn't been touched never
+    // shows a stray button.
+    document.addEventListener('input', function (e) {
+        const input = e.target;
+        if (!input.classList || !input.classList.contains('stock-input')) return;
+
+        const form = input.closest('form');
+        const saveBtn = form.querySelector('.stock-save-btn');
+        const changed = input.value !== input.dataset.originalValue;
+        saveBtn.classList.toggle('hidden', !changed);
+    });
+
+    document.addEventListener('submit', function (e) {
+        const form = e.target;
+        if (!form.classList || !form.classList.contains('stock-update-form')) return;
+
+        e.preventDefault();
+        const input = form.querySelector('.stock-input');
+        const saveBtn = form.querySelector('.stock-save-btn');
+
+        if (input.value === input.dataset.originalValue) return; // nothing to save
+
+        saveBtn.disabled = true;
+
+        fetch(form.action, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': getCookie('csrftoken'),
+            },
+            body: new FormData(form),
+        })
+            .then(function (resp) { return resp.json(); })
+            .then(function (data) {
+                if (!data.ok) {
+                    showToast(data.error || 'Could not update stock.', true);
+                    input.value = input.dataset.originalValue; // revert
+                    return;
+                }
+                input.value = data.stock;
+                input.dataset.originalValue = String(data.stock);
+                saveBtn.classList.add('hidden');
+                showToast(data.message);
+            })
+            .catch(function () {
+                showToast('Could not update stock.', true);
+                input.value = input.dataset.originalValue;
+            })
+            .finally(function () {
+                saveBtn.disabled = false;
+            });
+    });
+})();
+</script>
 {% endblock %}

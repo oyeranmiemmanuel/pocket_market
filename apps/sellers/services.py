@@ -20,7 +20,7 @@ def apply_for_seller(*, user, store_name, store_description, phone, business_ema
     Create a pending seller application. One per user - raises if they
     already have a profile (regardless of its current status), so a
     rejected/suspended seller can't just spam new applications; that
-    should go through re-review of the existing profile instead.
+    goes through resubmit_seller_application instead (REJECTED only).
     """
     if SellerProfile.objects.filter(user=user).exists():
         raise ValidationFailedError("You already have a seller application on file.")
@@ -34,6 +34,33 @@ def apply_for_seller(*, user, store_name, store_description, phone, business_ema
         business_email=business_email,
         status=SellerStatus.PENDING,
     )
+    return profile
+
+
+def resubmit_seller_application(*, profile, store_name, store_description, phone, business_email):
+    """
+    Spec section 2 - a REJECTED applicant can update their details and
+    resubmit for another review, without spawning a second SellerProfile
+    row (which would break the OneToOne with User and any KYC/orders
+    already linked to the original). Only valid from REJECTED - APPROVED/
+    PENDING sellers already have their own flows, and SUSPENDED is an
+    admin action that self-resubmission shouldn't be able to undo.
+    """
+    if profile.status != SellerStatus.REJECTED:
+        raise ValidationFailedError("Only a rejected application can be resubmitted.")
+
+    profile.store_name = store_name
+    profile.store_description = store_description
+    profile.phone = phone
+    profile.business_email = business_email
+    profile.status = SellerStatus.PENDING
+    profile.rejection_reason = ""
+    profile.reviewed_at = None
+    profile.reviewed_by = None
+    profile.save(update_fields=[
+        "store_name", "store_description", "phone", "business_email",
+        "status", "rejection_reason", "reviewed_at", "reviewed_by",
+    ])
     return profile
 
 

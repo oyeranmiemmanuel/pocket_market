@@ -1,0 +1,119 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Affiliate Analytics | Top Tech{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 py-12">
+
+    <h1 class="text-3xl font-bold text-gray-800 mb-1">Affiliate Dashboard</h1>
+    <p class="text-gray-500 mb-8">Code: <span class="font-semibold text-gray-700">{{ profile.affiliate_code }}</span></p>
+
+    {% include 'affiliates/_nav.html' with active='analytics' %}
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+
+        <div class="bg-white rounded-xl shadow p-6">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">Clicks Over Time</h2>
+            {% if analytics.clicks_by_day.labels %}
+                <canvas id="clicksChart" height="220"></canvas>
+            {% else %}
+                <p class="text-sm text-gray-400 py-16 text-center">No clicks in the last 30 days.</p>
+            {% endif %}
+        </div>
+
+        <div class="bg-white rounded-xl shadow p-6">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">Conversions</h2>
+            {% if analytics.conversions_by_day.labels %}
+                <canvas id="conversionsChart" height="220"></canvas>
+            {% else %}
+                <p class="text-sm text-gray-400 py-16 text-center">No conversions in the last 30 days.</p>
+            {% endif %}
+        </div>
+
+        <div class="bg-white rounded-xl shadow p-6">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">Earnings</h2>
+            <canvas id="earningsChart" height="220"></canvas>
+        </div>
+
+        <div class="bg-white rounded-xl shadow p-6">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">Top Products</h2>
+            {% if analytics.top_products.labels %}
+                <canvas id="topProductsChart" height="220"></canvas>
+            {% else %}
+                <p class="text-sm text-gray-400 py-16 text-center">No conversions yet.</p>
+            {% endif %}
+        </div>
+
+    </div>
+</div>
+
+{{ analytics.clicks_by_day|json_script:"clicks-data" }}
+{{ analytics.conversions_by_day|json_script:"conversions-data" }}
+{{ analytics.earnings_breakdown|json_script:"earnings-data" }}
+{{ analytics.top_products|json_script:"top-products-data" }}
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<script>
+(function () {
+    function readJSON(id) {
+        var el = document.getElementById(id);
+        return el ? JSON.parse(el.textContent) : null;
+    }
+
+    var clicks = readJSON("clicks-data");
+    if (clicks && clicks.labels.length) {
+        new Chart(document.getElementById("clicksChart"), {
+            type: "line",
+            data: {
+                labels: clicks.labels,
+                datasets: [{
+                    label: "Clicks",
+                    data: clicks.values,
+                    borderColor: "#4f46e5",
+                    backgroundColor: "rgba(79,70,229,0.1)",
+                    fill: true,
+                    tension: 0.3,
+                }],
+            },
+            options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } },
+        });
+    }
+
+    var conversions = readJSON("conversions-data");
+    if (conversions && conversions.labels.length) {
+        new Chart(document.getElementById("conversionsChart"), {
+            type: "bar",
+            data: {
+                labels: conversions.labels,
+                datasets: [{ label: "Conversions", data: conversions.values, backgroundColor: "#10b981" }],
+            },
+            options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } },
+        });
+    }
+
+    var earnings = readJSON("earnings-data");
+    if (earnings) {
+        new Chart(document.getElementById("earningsChart"), {
+            type: "bar",
+            data: {
+                labels: earnings.labels,
+                datasets: [{ label: "Earnings (₦)", data: earnings.values, backgroundColor: ["#f59e0b", "#10b981", "#6366f1"] }],
+            },
+            options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } },
+        });
+    }
+
+    var topProducts = readJSON("top-products-data");
+    if (topProducts && topProducts.labels.length) {
+        new Chart(document.getElementById("topProductsChart"), {
+            type: "bar",
+            data: {
+                labels: topProducts.labels,
+                datasets: [{ label: "Earnings (₦)", data: topProducts.values, backgroundColor: "#4f46e5" }],
+            },
+            options: { indexAxis: "y", plugins: { legend: { display: false } } },
+        });
+    }
+})();
+</script>
+{% endblock %}

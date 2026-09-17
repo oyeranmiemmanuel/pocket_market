@@ -1,6 +1,11 @@
 from django.conf import settings
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
+from apps.core.constants import (
+    AFFILIATE_COMMISSION_RATE_MAX,
+    AFFILIATE_COMMISSION_RATE_MIN,
+)
 from apps.core.models import BaseModel
 from apps.core.utils import unique_slugify
 
@@ -72,9 +77,15 @@ class Product(BaseModel):
     # apps.affiliates.services.resolve_affiliate_commission_rate.
     affiliate_commission_rate = models.DecimalField(
         max_digits=5, decimal_places=2, null=True, blank=True,
-        help_text="Affiliate commission percentage for this specific "
-                   "product. Leave blank to fall through to the seller's "
-                   "rate, then the platform default.",
+        validators=[
+            MinValueValidator(AFFILIATE_COMMISSION_RATE_MIN),
+            MaxValueValidator(AFFILIATE_COMMISSION_RATE_MAX),
+        ],
+        help_text=f"Affiliate commission percentage for this specific "
+                   f"product, from {AFFILIATE_COMMISSION_RATE_MIN}% to "
+                   f"{AFFILIATE_COMMISSION_RATE_MAX}%. Leave blank to fall "
+                   f"through to the seller's rate, then the platform "
+                   f"default.",
     )
 
     name = models.CharField(max_length=200)

@@ -1,0 +1,114 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Active Delivery | Top Tech{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto px-4 py-12">
+    <h1 class="text-3xl font-bold text-gray-800 mb-1">Rider Dashboard</h1>
+    <p class="text-gray-500 mb-8">{{ profile.full_name }}</p>
+
+    {% include 'riders/_nav.html' with active='active_delivery' %}
+
+    {% if messages %}
+        <div class="mb-6 space-y-2">
+            {% for message in messages %}
+                <p class="p-3 rounded-lg bg-green-50 text-green-700 text-sm">{{ message }}</p>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    {% if task %}
+    <div class="bg-white rounded-xl shadow p-6 sm:p-8">
+
+        <p class="text-sm text-gray-500 mb-1">Order</p>
+        <p class="text-xl font-bold text-gray-800 mb-6">{{ reference }}</p>
+
+        <!-- Delivery progression -->
+        <div class="flex items-center justify-between mb-8">
+            {% for step in steps %}
+            <div class="flex-1 flex flex-col items-center text-center relative">
+                {% if not forloop.first %}
+                <div class="absolute top-3 right-1/2 w-full h-0.5 {% if forloop.counter0 <= step_index %}bg-indigo-600{% else %}bg-gray-200{% endif %}" style="z-index:0;"></div>
+                {% endif %}
+                <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold z-10
+                    {% if forloop.counter0 < step_index %}bg-indigo-600 text-white
+                    {% elif forloop.counter0 == step_index %}bg-indigo-600 text-white ring-4 ring-indigo-100
+                    {% else %}bg-gray-200 text-gray-400{% endif %}">
+                    {{ forloop.counter }}
+                </div>
+                <p class="text-xs mt-2 font-semibold {% if forloop.counter0 <= step_index %}text-indigo-600{% else %}text-gray-400{% endif %}">
+                    {{ step }}
+                </p>
+            </div>
+            {% endfor %}
+        </div>
+
+        <p class="text-center mb-8">
+            <span class="inline-block px-3 py-1.5 rounded-full text-sm font-semibold bg-indigo-50 text-indigo-700">
+                {{ task.get_status_display }}
+            </span>
+        </p>
+
+        {% if contact %}
+        <div class="border border-gray-100 rounded-lg p-4 mb-8">
+            <p class="text-xs font-semibold text-gray-400 uppercase mb-1">{{ contact.label }}</p>
+            <p class="font-semibold text-gray-800">{{ contact.name }}</p>
+            {% if contact.phone %}
+            <a href="tel:{{ contact.phone }}" class="text-indigo-600 text-sm hover:underline">
+                <i class="fa-solid fa-phone mr-1"></i>{{ contact.phone }}
+            </a>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- Only the action(s) valid from the current state are shown. -->
+        {% if leg_type == 'pickup' %}
+            {% if task.status == 'assigned' or task.status == 'en_route' %}
+            <div class="flex gap-3">
+                <form method="post" action="{% url 'logistics:rider_mark_collected' task.id %}" class="flex-1">
+                    {% csrf_token %}
+                    <button class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-lg transition">
+                        Mark Collected
+                    </button>
+                </form>
+                <form method="post" action="{% url 'logistics:rider_report_exception' task.id %}" class="flex-1"
+                      onsubmit="this.reason.value = prompt('Reason?') || ''; return this.reason.value !== '';">
+                    {% csrf_token %}
+                    <input type="hidden" name="reason" value="">
+                    <button name="missing" value="0" class="w-full border border-red-200 text-red-600 font-semibold py-3 rounded-lg hover:bg-red-50 transition">
+                        Report Issue
+                    </button>
+                </form>
+            </div>
+            {% else %}
+            <p class="text-center text-gray-400 text-sm">Handed off &mdash; waiting on delivery dispatch.</p>
+            {% endif %}
+        {% elif leg_type == 'delivery' %}
+            {% if task.status == 'assigned' or task.status == 'en_route' %}
+            <form method="post" action="{% url 'logistics:rider_mark_delivered' task.id %}">
+                {% csrf_token %}
+                <button class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-lg transition">
+                    Mark Delivered
+                </button>
+            </form>
+            <p class="text-xs text-gray-400 text-center mt-3">
+                This currently marks delivery complete directly. A secure confirmation step
+                (one-time code / QR / buyer confirmation) isn't wired up on the backend yet.
+            </p>
+            {% else %}
+            <p class="text-center text-gray-400 text-sm">Delivered.</p>
+            {% endif %}
+        {% endif %}
+
+    </div>
+    {% else %}
+    <div class="text-center py-20 text-gray-400 bg-white rounded-xl shadow">
+        <i class="fa-solid fa-box-open text-5xl mb-4"></i>
+        <p>No active delivery right now.</p>
+        <a href="{% url 'logistics:rider_pickup_task_list' %}" class="text-indigo-600 hover:underline text-sm font-semibold mt-2 inline-block">
+            Check available pickup tasks &rarr;
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -2,6 +2,15 @@
 
 {% block title %}{{ product.name }} | Top Tech{% endblock %}
 
+{% block extra_css %}
+<meta property="og:type" content="product">
+<meta property="og:title" content="{{ product.name }}">
+<meta property="og:description" content="{{ product.description|truncatewords:30 }}">
+{% if product.image %}<meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{{ product.image.url }}">{% endif %}
+<meta property="og:url" content="{{ request.scheme }}://{{ request.get_host }}{{ request.path }}">
+<meta property="product:price:amount" content="{{ product.price }}">
+{% endblock %}
+
 {% block content %}
 <div class="max-w-5xl mx-auto px-4 py-12">
 

@@ -36,6 +36,27 @@ class AffiliateProfile(BaseModel):
 
     affiliate_code = models.CharField(max_length=20, unique=True, blank=True)
 
+    # Spec section 3 - onboarding fields collected at application time.
+    # blank=True at the model level so existing rows created before this
+    # field existed (back when apply_for_affiliate took no fields at all)
+    # stay valid; AffiliateApplicationForm makes them required for new
+    # applications. contact_email mirrors RiderProfile.contact_email -
+    # optional, falls back to the account email when blank.
+    full_name = models.CharField(max_length=150, blank=True)
+
+    phone = models.CharField(max_length=20, blank=True)
+
+    contact_email = models.EmailField(
+        blank=True,
+        help_text="Optional - defaults to the account email if left blank.",
+    )
+
+    promotional_channels = models.TextField(
+        blank=True,
+        help_text="Where this affiliate plans to promote products - blog, "
+                   "Instagram, YouTube, newsletter, etc.",
+    )
+
     status = models.CharField(
         max_length=20,
         choices=AffiliateStatus.choices,

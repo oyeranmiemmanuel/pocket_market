@@ -4,15 +4,29 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db.models import Avg, Count, Q
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
-from apps.catalog.models import Product, Review
+from apps.catalog.models import Product, ProductImage, Review
+from apps.core.constants import (
+    AFFILIATE_COMMISSION_RATE_MAX,
+    AFFILIATE_COMMISSION_RATE_MIN,
+)
 from apps.core.enums import FulfillmentStatus, PayoutStatus
 from apps.core.exceptions import ValidationFailedError
 from apps.orders.models import OrderItem
 
-from .forms import SellerApplicationForm, SellerBankDetailsForm, SellerProductForm, SellerStoreSettingsForm
+from .forms import (
+    ProductColorVariantFormSet,
+    ProductImageFormSet,
+    ProductSizeVariantFormSet,
+    SellerApplicationForm,
+    SellerBankDetailsForm,
+    SellerProductForm,
+    SellerStoreSettingsForm,
+)
 from .models import SellerProfile, SellerStatus
+from .order_status import SellerOrderStatus, build_seller_order_row, seller_order_item_queryset
 from .permissions import approved_seller_required
 from .services import apply_for_seller, request_seller_payout
 
@@ -130,18 +144,50 @@ def product_create_view(request):
 
     if request.method == "POST":
         form = SellerProductForm(request.POST, request.FILES)
-        if form.is_valid():
+        # Bound against the submitted data only (no `instance=` yet - the
+        # product doesn't exist until form.save() below), which is enough
+        # for is_valid() to run each nested form's own field validation.
+        # The formsets are re-bound to the real product right after it's
+        # created, and only saved once every one of them (including this
+        # one) has passed.
+        image_formset = ProductImageFormSet(request.POST, request.FILES, prefix="images")
+        color_formset = ProductColorVariantFormSet(request.POST, prefix="colors")
+        size_formset = ProductSizeVariantFormSet(request.POST, prefix="sizes")
+
+        if (
+            form.is_valid()
+            and image_formset.is_valid()
+            and color_formset.is_valid()
+            and size_formset.is_valid()
+        ):
             product = form.save(commit=False)
             # Ownership is never taken from the submitted form - always
             # the logged-in seller's own profile.
             product.seller = profile
             product.save()
+
+            for formset in (image_formset, color_formset, size_formset):
+                formset.instance = product
+                formset.save()
+
             messages.success(request, f'"{product.name}" was created.')
             return redirect("sellers:product_list")
     else:
         form = SellerProductForm()
+        image_formset = ProductImageFormSet(prefix="images")
+        color_formset = ProductColorVariantFormSet(prefix="colors")
+        size_formset = ProductSizeVariantFormSet(prefix="sizes")
 
-    return render(request, "sellers/product_form.html", {"form": form, "mode": "create"})
+    return render(request, "sellers/product_form.html", {
+        "form": form,
+        "mode": "create",
+        "commission_min": AFFILIATE_COMMISSION_RATE_MIN,
+        "commission_max": AFFILIATE_COMMISSION_RATE_MAX,
+        "image_formset": image_formset,
+        "color_formset": color_formset,
+        "size_formset": size_formset,
+        "max_images": ProductImage.MAX_IMAGES,
+    })
 
 
 @approved_seller_required
@@ -151,14 +197,39 @@ def product_edit_view(request, pk):
 
     if request.method == "POST":
         form = SellerProductForm(request.POST, request.FILES, instance=product)
-        if form.is_valid():
+        image_formset = ProductImageFormSet(request.POST, request.FILES, instance=product, prefix="images")
+        color_formset = ProductColorVariantFormSet(request.POST, instance=product, prefix="colors")
+        size_formset = ProductSizeVariantFormSet(request.POST, instance=product, prefix="sizes")
+
+        if (
+            form.is_valid()
+            and image_formset.is_valid()
+            and color_formset.is_valid()
+            and size_formset.is_valid()
+        ):
             form.save()
+            image_formset.save()
+            color_formset.save()
+            size_formset.save()
             messages.success(request, f'"{product.name}" was updated.')
             return redirect("sellers:product_list")
     else:
         form = SellerProductForm(instance=product)
+        image_formset = ProductImageFormSet(instance=product, prefix="images")
+        color_formset = ProductColorVariantFormSet(instance=product, prefix="colors")
+        size_formset = ProductSizeVariantFormSet(instance=product, prefix="sizes")
 
-    return render(request, "sellers/product_form.html", {"form": form, "mode": "edit", "product": product})
+    return render(request, "sellers/product_form.html", {
+        "form": form,
+        "mode": "edit",
+        "product": product,
+        "commission_min": AFFILIATE_COMMISSION_RATE_MIN,
+        "commission_max": AFFILIATE_COMMISSION_RATE_MAX,
+        "image_formset": image_formset,
+        "color_formset": color_formset,
+        "size_formset": size_formset,
+        "max_images": ProductImage.MAX_IMAGES,
+    })
 
 
 @approved_seller_required
@@ -174,19 +245,78 @@ def product_delete_view(request, pk):
     return render(request, "sellers/product_confirm_delete.html", {"product": product})
 
 
+def _is_ajax(request):
+    """
+    Matches the convention already used sitewide (templates/core/base.html's
+    add-to-cart-form, templates/cart/cart_detail.html's update-quantity
+    requests): a fetch() call sets this header explicitly, a normal
+    browser form submission never does. Lets each of these views serve
+    both a real <form> (works with JS disabled) and a fetch()-driven one
+    from the same URL.
+    """
+    return request.headers.get("X-Requested-With") == "XMLHttpRequest"
+
+
 @approved_seller_required
 def product_toggle_active_view(request, pk):
     profile = request.user.seller_profile
     product = get_object_or_404(Product, pk=pk, seller=profile)
+    is_ajax = _is_ajax(request)
 
-    if request.method == "POST":
-        product.is_active = not product.is_active
-        product.save(update_fields=["is_active", "updated_at"])
-        messages.success(
-            request,
-            f'"{product.name}" is now {"active" if product.is_active else "inactive"}.',
-        )
+    if request.method != "POST":
+        if is_ajax:
+            return JsonResponse({"ok": False, "error": "Invalid request method."}, status=405)
+        return redirect("sellers:product_list")
 
+    product.is_active = not product.is_active
+    product.save(update_fields=["is_active", "updated_at"])
+    message = f'"{product.name}" is now {"active" if product.is_active else "inactive"}.'
+
+    if is_ajax:
+        return JsonResponse({"ok": True, "is_active": product.is_active, "message": message})
+
+    messages.success(request, message)
+    return redirect("sellers:product_list")
+
+
+@approved_seller_required
+def product_update_stock_view(request, pk):
+    """
+    Inline stock quantity edit from the product list row (spec section
+    7 - "Product images / Stock information ... Use AJAX for suitable
+    actions such as status changes and inline updates"). Same
+    validation either way the request arrives (AJAX or a plain form
+    submit) - only the response shape differs.
+    """
+    profile = request.user.seller_profile
+    product = get_object_or_404(Product, pk=pk, seller=profile)
+    is_ajax = _is_ajax(request)
+
+    if request.method != "POST":
+        if is_ajax:
+            return JsonResponse({"ok": False, "error": "Invalid request method."}, status=405)
+        return redirect("sellers:product_list")
+
+    raw_stock = (request.POST.get("stock") or "").strip()
+    try:
+        new_stock = int(raw_stock)
+        if new_stock < 0:
+            raise ValueError
+    except (TypeError, ValueError):
+        error = "Stock must be a whole number of 0 or more."
+        if is_ajax:
+            return JsonResponse({"ok": False, "error": error}, status=400)
+        messages.error(request, error)
+        return redirect("sellers:product_list")
+
+    product.stock = new_stock
+    product.save(update_fields=["stock", "updated_at"])
+    message = f'Stock for "{product.name}" updated to {product.stock}.'
+
+    if is_ajax:
+        return JsonResponse({"ok": True, "stock": product.stock, "message": message})
+
+    messages.success(request, message)
     return redirect("sellers:product_list")
 
 
@@ -200,18 +330,28 @@ def product_toggle_active_view(request, pk):
 
 @approved_seller_required
 def order_item_list_view(request):
+    """
+    Spec section 8. Only this seller's own line items are ever visible -
+    the queryset is filtered on `seller=profile` before anything else, so
+    a seller can never see another seller's items or the rest of a
+    shared multi-seller order.
+
+    The status filter/columns use the derived SellerOrderStatus (see
+    apps.sellers.order_status), not the raw fulfillment_status field -
+    the raw field only covers the seller's own pending/processing/...
+    updates, while the page also needs to reflect pickup, delivery and
+    refund state owned by other apps.
+    """
     profile = request.user.seller_profile
-    items = (
-        OrderItem.objects.filter(seller=profile)
-        .select_related("order", "product")
-        .order_by("-created_at")
-    )
+    items = seller_order_item_queryset(profile)
+
+    rows = [build_seller_order_row(item) for item in items]
 
     status_filter = request.GET.get("status")
-    if status_filter in FulfillmentStatus.values:
-        items = items.filter(fulfillment_status=status_filter)
+    if status_filter in SellerOrderStatus.values:
+        rows = [row for row in rows if row["status"] == status_filter]
 
-    paginator = Paginator(items, 20)
+    paginator = Paginator(rows, 20)
     page_obj = paginator.get_page(request.GET.get("page"))
 
     return render(
@@ -220,8 +360,9 @@ def order_item_list_view(request):
         {
             "profile": profile,
             "page_obj": page_obj,
-            "status_choices": FulfillmentStatus.choices,
+            "status_choices": SellerOrderStatus.choices,
             "status_filter": status_filter,
+            "fulfillment_status_choices": FulfillmentStatus.choices,
         },
     )
 

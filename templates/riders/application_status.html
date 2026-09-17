@@ -4,19 +4,142 @@
 
 {% block content %}
 <div class="max-w-xl mx-auto px-4 py-12">
-    <h1 class="text-3xl font-bold text-gray-800 mb-6">Your Rider Application</h1>
+    <h1 class="text-3xl font-bold text-gray-800 mb-8">Your Rider Application</h1>
 
-    <div class="bg-white rounded-xl shadow p-6 sm:p-8 space-y-3">
-        <p><span class="font-semibold">Status:</span> {{ profile.get_status_display }}</p>
-        <p><span class="font-semibold">Full name:</span> {{ profile.full_name }}</p>
-        <p><span class="font-semibold">Service area:</span> {{ profile.service_area }}</p>
-        <p><span class="font-semibold">Vehicle:</span> {{ profile.get_vehicle_type_display }}</p>
-        {% if profile.status == "rejected" and profile.rejection_reason %}
-            <p class="text-red-600"><span class="font-semibold">Reason:</span> {{ profile.rejection_reason }}</p>
+    {% if messages %}
+        <div class="mb-6 space-y-2">
+            {% for message in messages %}
+                <p class="p-3 rounded-lg bg-blue-50 text-blue-700 text-sm">{{ message }}</p>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <div class="bg-white rounded-xl shadow p-6 sm:p-8 text-center">
+
+        {% if profile.status == 'pending' %}
+            <div class="w-16 h-16 rounded-full bg-yellow-50 flex items-center justify-center mx-auto mb-5">
+                <i class="fa-solid fa-hourglass-half text-2xl text-yellow-600"></i>
+            </div>
+            <h2 class="text-xl font-bold text-gray-800 mb-2">Pending Review</h2>
+            <p class="text-gray-500">
+                Your rider application is being reviewed. We'll let you know once a decision is made.
+            </p>
+
+        {% elif profile.status == 'approved' %}
+            <div class="w-16 h-16 rounded-full bg-green-50 flex items-center justify-center mx-auto mb-5">
+                <i class="fa-solid fa-circle-check text-2xl text-green-600"></i>
+            </div>
+            <h2 class="text-xl font-bold text-gray-800 mb-2">Approved</h2>
+            <p class="text-gray-500 mb-6">You're approved. Head to your dashboard to go available for deliveries.</p>
+            <a href="{% url 'riders:dashboard' %}"
+               class="inline-block bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-6 py-3 rounded-lg transition">
+                Go to Dashboard
+            </a>
+
+        {% elif profile.status == 'rejected' %}
+            <div class="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-5">
+                <i class="fa-solid fa-circle-xmark text-2xl text-red-500"></i>
+            </div>
+            <h2 class="text-xl font-bold text-gray-800 mb-2">Application Rejected</h2>
+            {% if profile.rejection_reason %}
+                <p class="text-gray-500 mb-6">{{ profile.rejection_reason }}</p>
+            {% else %}
+                <p class="text-gray-500 mb-6">Your application wasn't approved this time.</p>
+            {% endif %}
+            <a href="{% url 'riders:apply' %}"
+               class="inline-block bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-6 py-3 rounded-lg transition">
+                Resubmit Application
+            </a>
+
+        {% elif profile.status == 'suspended' %}
+            <div class="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-5">
+                <i class="fa-solid fa-ban text-2xl text-red-500"></i>
+            </div>
+            <h2 class="text-xl font-bold text-gray-800 mb-2">Account Suspended</h2>
+            {% if profile.rejection_reason %}
+                <p class="text-gray-500 mb-6">{{ profile.rejection_reason }}</p>
+            {% else %}
+                <p class="text-gray-500 mb-6">Your rider account has been suspended.</p>
+            {% endif %}
+            <a href="{% url 'contact' %}"
+               class="inline-block bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-6 py-3 rounded-lg transition">
+                Contact Support
+            </a>
+
+        {% elif profile.status == 'inactive' %}
+            <div class="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-5">
+                <i class="fa-solid fa-moon text-2xl text-gray-500"></i>
+            </div>
+            <h2 class="text-xl font-bold text-gray-800 mb-2">Account Inactive</h2>
+            <p class="text-gray-500 mb-6">
+                You paused your rider account. Reactivation goes through a quick review -
+                contact support when you're ready to come back online.
+            </p>
+            <a href="{% url 'contact' %}"
+               class="inline-block bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-6 py-3 rounded-lg transition">
+                Contact Support
+            </a>
         {% endif %}
-        {% if profile.status == "approved" %}
-            <a href="{% url 'riders:dashboard' %}" class="inline-block mt-4 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-lg transition">Go to Dashboard</a>
-        {% endif %}
+
     </div>
+
+    <div class="bg-white rounded-xl shadow p-6 sm:p-8 mt-6 text-left">
+        <h2 class="text-lg font-bold text-gray-800 mb-4">Your Details</h2>
+        <dl class="space-y-3 text-sm">
+            <div class="flex justify-between gap-4">
+                <dt class="text-gray-500">Full name</dt>
+                <dd class="text-gray-800 font-medium text-right">{{ profile.full_name }}</dd>
+            </div>
+            <div class="flex justify-between gap-4">
+                <dt class="text-gray-500">Phone</dt>
+                <dd class="text-gray-800 font-medium text-right">{{ profile.phone }}</dd>
+            </div>
+            <div class="flex justify-between gap-4">
+                <dt class="text-gray-500">Contact email</dt>
+                <dd class="text-gray-800 font-medium text-right">{{ profile.contact_email|default:profile.user.email }}</dd>
+            </div>
+            <div class="flex justify-between gap-4">
+                <dt class="text-gray-500">Service area</dt>
+                <dd class="text-gray-800 font-medium text-right">{{ profile.service_area }}</dd>
+            </div>
+            <div class="flex justify-between gap-4">
+                <dt class="text-gray-500">Delivery method</dt>
+                <dd class="text-gray-800 font-medium text-right">{{ profile.get_vehicle_type_display }}</dd>
+            </div>
+        </dl>
+    </div>
+
+    {% if profile.status == 'pending' or profile.status == 'approved' %}
+        <div class="bg-white rounded-xl shadow p-6 sm:p-8 mt-6">
+            <h2 class="text-lg font-bold text-gray-800 mb-1">Account Verification</h2>
+            <p class="text-gray-500 text-sm mb-4">
+                Separate from your application review - this confirms your identity, licence, and vehicle details.
+            </p>
+
+            {% with kyc_status=profile.kyc.status|default:'not_submitted' %}
+                <div class="flex items-center justify-between gap-4 p-4 rounded-lg bg-gray-50">
+                    <div>
+                        <p class="text-sm font-semibold text-gray-700">
+                            {% if kyc_status == 'not_submitted' %}Not submitted
+                            {% elif kyc_status == 'submitted' %}Submitted
+                            {% elif kyc_status == 'under_review' %}Under Review
+                            {% elif kyc_status == 'confirmed' %}Verified
+                            {% elif kyc_status == 'rejected' %}Rejected
+                            {% elif kyc_status == 'resubmission' %}Resubmission Required
+                            {% endif %}
+                        </p>
+                        {% if profile.kyc.rejection_reason %}
+                            <p class="text-xs text-gray-500 mt-1">{{ profile.kyc.rejection_reason }}</p>
+                        {% endif %}
+                    </div>
+                    <a href="{% url 'kyc:rider' %}"
+                       class="whitespace-nowrap text-indigo-600 font-semibold text-sm hover:underline">
+                        {% if kyc_status == 'not_submitted' or kyc_status == 'resubmission' %}Start Verification{% else %}View Details{% endif %}
+                    </a>
+                </div>
+            {% endwith %}
+        </div>
+    {% endif %}
+
 </div>
 {% endblock %}

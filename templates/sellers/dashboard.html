@@ -1,13 +1,13 @@
 {% extends 'core/base.html' %}
 {% block title %}Seller Dashboard | Top Tech{% endblock %}
 {% block content %}
-<div class="max-w-4xl mx-auto px-4 py-12">
-    <div class="flex items-center justify-between mb-8">
+<div class="max-w-6xl mx-auto px-4 py-12">
+    <div class="flex items-center justify-between mb-8 flex-wrap gap-4">
         <div>
             <h1 class="text-3xl font-bold text-gray-800">{{ profile.store_name }}</h1>
             <p class="text-gray-500">Seller Dashboard</p>
         </div>
-        <div class="flex gap-4">
+        <div class="flex gap-4 flex-wrap">
             <a href="{% url 'sellers:product_list' %}" class="text-indigo-600 font-semibold text-sm hover:underline">
                 My Products
             </a>
@@ -17,13 +17,13 @@
             <a href="{% url 'sellers:earnings' %}" class="text-indigo-600 font-semibold text-sm hover:underline">
                 Earnings
             </a>
-                        <a href="{% url 'sellers:payouts' %}" class="text-indigo-600 font-semibold text-sm hover:underline">
+            <a href="{% url 'sellers:payouts' %}" class="text-indigo-600 font-semibold text-sm hover:underline">
                 Payouts
             </a>
             <a href="{% url 'sellers:bank_details' %}" class="text-indigo-600 font-semibold text-sm hover:underline">
                 Bank Details
             </a>
-                    <a href="{% url 'sellers:store_settings' %}" class="text-indigo-600 font-semibold text-sm hover:underline">
+            <a href="{% url 'sellers:store_settings' %}" class="text-indigo-600 font-semibold text-sm hover:underline">
                 Store Settings
             </a>
         </div>
@@ -35,47 +35,14 @@
         {% endfor %}
     {% endif %}
 
-    <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-8">
-        <div class="bg-white rounded-xl shadow p-5">
-            <p class="text-sm text-gray-500">Products</p>
-            <p class="text-2xl font-bold text-gray-800">{{ total_products }}</p>
-        </div>
-        <div class="bg-white rounded-xl shadow p-5">
-            <p class="text-sm text-gray-500">Orders</p>
-            <p class="text-2xl font-bold text-gray-800">{{ total_orders }}</p>
-        </div>
-        <div class="bg-white rounded-xl shadow p-5">
-            <p class="text-sm text-gray-500">Items Sold</p>
-            <p class="text-2xl font-bold text-gray-800">{{ total_items_sold }}</p>
-        </div>
-        <div class="bg-white rounded-xl shadow p-5">
-            <p class="text-sm text-gray-500">Awaiting Fulfillment</p>
-            <p class="text-2xl font-bold text-gray-800">{{ pending_fulfillment_count }}</p>
-        </div>
-        <div class="bg-white rounded-xl shadow p-5">
-            <p class="text-sm text-gray-500">Commission Rate</p>
-            <p class="text-2xl font-bold text-gray-800">
-                {% if profile.commission_rate %}{{ profile.commission_rate }}%{% else %}Platform default{% endif %}
-            </p>
-        </div>
-        <div class="bg-white rounded-xl shadow p-5">
-            <p class="text-sm text-gray-500">Status</p>
-            <p class="text-2xl font-bold text-green-600">{{ profile.get_status_display }}</p>
-        </div>
-    </div>
-
-    <h2 class="text-lg font-semibold text-gray-800 mb-4">Earnings</h2>
-    <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-4">
+    <!-- Summary cards - spec section 5 -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
         <div class="bg-white rounded-xl shadow p-5">
             <p class="text-sm text-gray-500">Total Sales</p>
             <p class="text-2xl font-bold text-gray-800">₦{{ total_sales }}</p>
         </div>
         <div class="bg-white rounded-xl shadow p-5">
-            <p class="text-sm text-gray-500">Total Earnings</p>
-            <p class="text-2xl font-bold text-gray-800">₦{{ total_earnings }}</p>
-        </div>
-        <div class="bg-white rounded-xl shadow p-5">
-            <p class="text-sm text-gray-500">Pending Payout</p>
+            <p class="text-sm text-gray-500">Pending Earnings</p>
             <p class="text-2xl font-bold text-amber-600">₦{{ pending_payout }}</p>
         </div>
         <div class="bg-white rounded-xl shadow p-5">
@@ -83,26 +50,208 @@
             <p class="text-2xl font-bold text-green-600">₦{{ available_balance }}</p>
         </div>
         <div class="bg-white rounded-xl shadow p-5">
-            <p class="text-sm text-gray-500">Paid Out</p>
+            <p class="text-sm text-gray-500">Total Withdrawn</p>
             <p class="text-2xl font-bold text-gray-800">₦{{ paid_out }}</p>
         </div>
         <div class="bg-white rounded-xl shadow p-5">
-            <p class="text-sm text-gray-500">Refunded</p>
-            <p class="text-2xl font-bold text-red-600">₦{{ refunded_amount }}</p>
+            <p class="text-sm text-gray-500">Active Orders</p>
+            <p class="text-2xl font-bold text-gray-800">{{ active_orders_count }}</p>
+        </div>
+        <div class="bg-white rounded-xl shadow p-5">
+            <p class="text-sm text-gray-500">Refund Requests</p>
+            <p class="text-2xl font-bold {% if refund_requests_count %}text-red-600{% else %}text-gray-800{% endif %}">{{ refund_requests_count }}</p>
+        </div>
+        <div class="bg-white rounded-xl shadow p-5">
+            <p class="text-sm text-gray-500">Products</p>
+            <p class="text-2xl font-bold text-gray-800">{{ total_products }}</p>
+        </div>
+        <div class="bg-white rounded-xl shadow p-5">
+            <p class="text-sm text-gray-500">Status</p>
+            <p class="text-2xl font-bold text-green-600">{{ profile.get_status_display }}</p>
         </div>
     </div>
-    <div class="flex items-center justify-between bg-white rounded-xl shadow p-5 mb-4">
+
+    <div class="flex items-center justify-between bg-white rounded-xl shadow p-5 mb-10">
         <div>
             <p class="text-sm text-gray-500">Withdrawable Now</p>
-            <p class="text-2xl font-bold text-green-600">₦{{ withdrawable_balance }}</p>
-            {% if payouts_in_progress %}
-                <p class="text-xs text-gray-400">₦{{ payouts_in_progress }} already requested and awaiting payout</p>
+            <p class="text-2xl font-bold text-green-600">₦{{ profile.withdrawable_balance }}</p>
+            {% if profile.payouts_in_progress_total %}
+                <p class="text-xs text-gray-400">₦{{ profile.payouts_in_progress_total }} already requested and awaiting payout</p>
             {% endif %}
         </div>
         <a href="{% url 'sellers:payouts' %}" class="bg-indigo-600 text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-indigo-700">
             Request Payout
         </a>
     </div>
+
+    <!-- Charts - spec section 5. All data computed server-side in
+         apps.sellers.analytics from real SellerEarning/OrderItem rows. -->
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+
+        <div class="bg-white rounded-xl shadow p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-semibold text-gray-800">Revenue Trend</h2>
+                <div class="flex gap-1 bg-gray-100 rounded-lg p-1 text-xs font-semibold">
+                    <a href="?revenue_period=daily" class="px-3 py-1 rounded-md {% if revenue_period == 'daily' %}bg-white shadow text-gray-800{% else %}text-gray-500{% endif %}">Daily</a>
+                    <a href="?revenue_period=weekly" class="px-3 py-1 rounded-md {% if revenue_period == 'weekly' %}bg-white shadow text-gray-800{% else %}text-gray-500{% endif %}">Weekly</a>
+                    <a href="?revenue_period=monthly" class="px-3 py-1 rounded-md {% if revenue_period == 'monthly' %}bg-white shadow text-gray-800{% else %}text-gray-500{% endif %}">Monthly</a>
+                </div>
+            </div>
+            {% if revenue_trend.labels %}
+                <canvas id="revenueTrendChart" height="220"></canvas>
+            {% else %}
+                <p class="text-sm text-gray-400 py-16 text-center">No sales in this period yet.</p>
+            {% endif %}
+        </div>
+
+        <div class="bg-white rounded-xl shadow p-6">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">Orders Over Time</h2>
+            {% if orders_over_time.labels %}
+                <canvas id="ordersOverTimeChart" height="220"></canvas>
+            {% else %}
+                <p class="text-sm text-gray-400 py-16 text-center">No orders in the last 30 days.</p>
+            {% endif %}
+        </div>
+
+        <div class="bg-white rounded-xl shadow p-6">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">Orders by Status</h2>
+            {% if total_orders %}
+                <canvas id="ordersByStatusChart" height="220"></canvas>
+            {% else %}
+                <p class="text-sm text-gray-400 py-16 text-center">No orders yet.</p>
+            {% endif %}
+        </div>
+
+        <div class="bg-white rounded-xl shadow p-6">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">Earnings Breakdown</h2>
+            {% if total_earnings %}
+                <canvas id="earningsBreakdownChart" height="220"></canvas>
+            {% else %}
+                <p class="text-sm text-gray-400 py-16 text-center">No earnings recorded yet.</p>
+            {% endif %}
+        </div>
+
+        <div class="bg-white rounded-xl shadow p-6 lg:col-span-2">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">Product Performance</h2>
+            {% if product_performance.top %}
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div>
+                        <p class="text-xs font-semibold text-gray-500 uppercase mb-3">Top Products</p>
+                        <canvas id="topProductsChart" height="200"></canvas>
+                    </div>
+                    {% if product_performance.bottom %}
+                    <div>
+                        <p class="text-xs font-semibold text-gray-500 uppercase mb-3">Lowest Performing</p>
+                        <canvas id="bottomProductsChart" height="200"></canvas>
+                    </div>
+                    {% endif %}
+                </div>
+            {% else %}
+                <p class="text-sm text-gray-400 py-16 text-center">No product sales yet.</p>
+            {% endif %}
+        </div>
+
+    </div>
+
     <p class="text-sm text-gray-400">Pending earnings clear to "Available" once confirmed by the platform.</p>
 </div>
+
+{{ revenue_trend|json_script:"revenue-trend-data" }}
+{{ orders_over_time|json_script:"orders-over-time-data" }}
+{{ orders_by_status|json_script:"orders-by-status-data" }}
+{{ earnings_breakdown|json_script:"earnings-breakdown-data" }}
+{{ product_performance|json_script:"product-performance-data" }}
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<script>
+(function () {
+    function readJSON(id) {
+        var el = document.getElementById(id);
+        return el ? JSON.parse(el.textContent) : null;
+    }
+
+    var palette = ["#4f46e5", "#f59e0b", "#10b981", "#ef4444", "#6366f1", "#0ea5e9"];
+
+    var revenue = readJSON("revenue-trend-data");
+    if (revenue && revenue.labels.length) {
+        new Chart(document.getElementById("revenueTrendChart"), {
+            type: "line",
+            data: {
+                labels: revenue.labels,
+                datasets: [{
+                    label: "Revenue (₦)",
+                    data: revenue.values,
+                    borderColor: "#4f46e5",
+                    backgroundColor: "rgba(79,70,229,0.1)",
+                    fill: true,
+                    tension: 0.3,
+                }],
+            },
+            options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } },
+        });
+    }
+
+    var ordersOverTime = readJSON("orders-over-time-data");
+    if (ordersOverTime && ordersOverTime.labels.length) {
+        new Chart(document.getElementById("ordersOverTimeChart"), {
+            type: "bar",
+            data: {
+                labels: ordersOverTime.labels,
+                datasets: [{ label: "Orders", data: ordersOverTime.values, backgroundColor: "#4f46e5" }],
+            },
+            options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } },
+        });
+    }
+
+    var ordersByStatus = readJSON("orders-by-status-data");
+    var ordersByStatusEl = document.getElementById("ordersByStatusChart");
+    if (ordersByStatus && ordersByStatusEl) {
+        new Chart(ordersByStatusEl, {
+            type: "bar",
+            data: {
+                labels: ordersByStatus.labels,
+                datasets: [{ label: "Line items", data: ordersByStatus.values, backgroundColor: palette }],
+            },
+            options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } },
+        });
+    }
+
+    var earnings = readJSON("earnings-breakdown-data");
+    var earningsEl = document.getElementById("earningsBreakdownChart");
+    if (earnings && earningsEl) {
+        new Chart(earningsEl, {
+            type: "doughnut",
+            data: {
+                labels: earnings.labels,
+                datasets: [{ data: earnings.values, backgroundColor: ["#f59e0b", "#6366f1", "#10b981", "#9ca3af"] }],
+            },
+        });
+    }
+
+    var products = readJSON("product-performance-data");
+    var topEl = document.getElementById("topProductsChart");
+    if (products && products.top && products.top.length && topEl) {
+        new Chart(topEl, {
+            type: "bar",
+            data: {
+                labels: products.top.map(function (p) { return p.name; }),
+                datasets: [{ label: "Revenue (₦)", data: products.top.map(function (p) { return p.revenue; }), backgroundColor: "#10b981" }],
+            },
+            options: { indexAxis: "y", plugins: { legend: { display: false } } },
+        });
+    }
+    var bottomEl = document.getElementById("bottomProductsChart");
+    if (products && products.bottom && products.bottom.length && bottomEl) {
+        new Chart(bottomEl, {
+            type: "bar",
+            data: {
+                labels: products.bottom.map(function (p) { return p.name; }),
+                datasets: [{ label: "Revenue (₦)", data: products.bottom.map(function (p) { return p.revenue; }), backgroundColor: "#ef4444" }],
+            },
+            options: { indexAxis: "y", plugins: { legend: { display: false } } },
+        });
+    }
+})();
+</script>
 {% endblock %}

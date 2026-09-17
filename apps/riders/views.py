@@ -1,12 +1,50 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
 from django.shortcuts import redirect, render
+from django.utils import timezone
 
 from apps.core.exceptions import ValidationFailedError
+from apps.logistics.models import DeliveryTask, DeliveryTaskStatus, PickupTask, PickupTaskStatus
 
-from .forms import RiderApplicationForm, RiderBankDetailsForm
+from .forms import RiderApplicationForm, RiderBankDetailsForm, RiderProfileForm
 from .permissions import approved_rider_required
 from .services import apply_for_rider, deactivate_rider, set_rider_availability
+
+_ACTIVE_PICKUP_STATUSES = (PickupTaskStatus.ASSIGNED, PickupTaskStatus.EN_ROUTE)
+_ACTIVE_DELIVERY_STATUSES = (DeliveryTaskStatus.ASSIGNED, DeliveryTaskStatus.EN_ROUTE)
+_TERMINAL_DELIVERY_STATUSES = (DeliveryTaskStatus.DELIVERED, DeliveryTaskStatus.FAILED, DeliveryTaskStatus.CANCELLED)
+
+
+def _active_leg(profile):
+    """
+    The one job spec section 14 wants on the "Active Delivery" screen.
+    A rider works two distinct leg types in this codebase - a PickupTask
+    (collecting from a seller) and a DeliveryTask (the final leg to the
+    buyer) - never coupled to each other by a direct FK, so whichever one
+    this rider currently holds open is "the" active job. Delivery takes
+    priority when a rider somehow has both open at once, since it's
+    later in the journey and more time-sensitive.
+    """
+    delivery = (
+        DeliveryTask.objects.filter(rider=profile, status__in=_ACTIVE_DELIVERY_STATUSES)
+        .select_related("delivery__order__shipping_address")
+        .order_by("-created_at")
+        .first()
+    )
+    if delivery is not None:
+        return "delivery", delivery
+
+    pickup = (
+        PickupTask.objects.filter(rider=profile, status__in=_ACTIVE_PICKUP_STATUSES)
+        .select_related("package__fulfillment__seller", "package__fulfillment__order")
+        .order_by("-created_at")
+        .first()
+    )
+    if pickup is not None:
+        return "pickup", pickup
+
+    return None, None
 
 
 @login_required(login_url="accounts:login")
@@ -44,7 +82,23 @@ def application_status_view(request):
 @approved_rider_required
 def dashboard_view(request):
     profile = request.user.rider_profile
-    return render(request, "riders/dashboard.html", {"profile": profile})
+    leg_type, active_task = _active_leg(profile)
+    today = timezone.localdate()
+
+    return render(request, "riders/dashboard.html", {
+        "profile": profile,
+        "leg_type": leg_type,
+        "active_task": active_task,
+        "completed_today": DeliveryTask.objects.filter(
+            rider=profile, status=DeliveryTaskStatus.DELIVERED, delivered_at__date=today,
+        ).count(),
+        "total_completed": DeliveryTask.objects.filter(
+            rider=profile, status=DeliveryTaskStatus.DELIVERED,
+        ).count(),
+        # No rider earnings ledger exists yet (see earnings_view below) -
+        # shown honestly as unavailable rather than a fabricated ₦0.
+        "earnings_available": False,
+    })
 
 
 @approved_rider_required
@@ -60,6 +114,116 @@ def toggle_availability_view(request):
             messages.success(request, f"You are now {'available' if profile.is_available else 'unavailable'}.")
 
     return redirect("riders:dashboard")
+
+
+@approved_rider_required
+def active_delivery_view(request):
+    """
+    Spec section 14. Shows whichever leg (pickup or delivery) this rider
+    currently holds open, a 4-step progression (Assigned / Picked Up /
+    In Transit / Delivered), and ONLY the action(s) actually valid from
+    its current state - never a status dropdown or free status switch.
+
+    The actions themselves (mark collected, report exception, mark
+    delivered) already exist as apps.logistics views/services; this page
+    just surfaces them in context rather than duplicating that logic.
+    """
+    profile = request.user.rider_profile
+    leg_type, task = _active_leg(profile)
+
+    STEPS = ["Assigned", "Picked Up", "In Transit", "Delivered"]
+
+    step_index = 0
+    contact = None
+    reference = None
+
+    if leg_type == "pickup":
+        fulfillment = task.package.fulfillment
+        reference = fulfillment.order.reference
+        contact = {"label": "Pickup from", "name": fulfillment.seller.store_name, "phone": fulfillment.seller.phone}
+        step_index = 1 if task.status == PickupTaskStatus.COLLECTED else 0
+    elif leg_type == "delivery":
+        order = task.delivery.order
+        reference = order.reference
+        contact = {"label": "Deliver to", "name": order.full_name, "phone": order.phone}
+        step_index = {
+            DeliveryTaskStatus.ASSIGNED: 1,
+            DeliveryTaskStatus.EN_ROUTE: 2,
+            DeliveryTaskStatus.DELIVERED: 3,
+        }.get(task.status, 1)
+
+    return render(request, "riders/active_delivery.html", {
+        "profile": profile,
+        "leg_type": leg_type,
+        "task": task,
+        "reference": reference,
+        "contact": contact,
+        "steps": STEPS,
+        "step_index": step_index,
+    })
+
+
+@approved_rider_required
+def activity_view(request):
+    """
+    Spec section 17. Completed/failed/cancelled deliveries, paginated -
+    never an unbounded historical dump. Earnings/payment history are
+    intentionally NOT here yet: no rider earning ledger exists on the
+    backend (see earnings_view), so showing a history list for money
+    that was never actually tracked would be fabricating data.
+    """
+    profile = request.user.rider_profile
+
+    tasks = (
+        DeliveryTask.objects.filter(rider=profile, status__in=_TERMINAL_DELIVERY_STATUSES)
+        .select_related("delivery__order")
+        .order_by("-created_at")
+    )
+
+    status_filter = request.GET.get("status")
+    if status_filter in DeliveryTaskStatus.values:
+        tasks = tasks.filter(status=status_filter)
+
+    paginator = Paginator(tasks, 20)
+    page_obj = paginator.get_page(request.GET.get("page"))
+
+    return render(request, "riders/activity.html", {
+        "profile": profile,
+        "page_obj": page_obj,
+        "status_filter": status_filter,
+    })
+
+
+@approved_rider_required
+def profile_view(request):
+    profile = request.user.rider_profile
+
+    if request.method == "POST":
+        form = RiderProfileForm(request.POST, instance=profile)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Profile updated.")
+            return redirect("riders:profile")
+    else:
+        form = RiderProfileForm(instance=profile)
+
+    return render(request, "riders/profile.html", {"form": form, "profile": profile})
+
+
+@approved_rider_required
+def earnings_view(request):
+    """
+    Spec section 1/16/17 - rider earnings + payment history. No rider
+    earning ledger exists on the backend yet (apps.ledger.LedgerEntry only
+    tracks seller_earning_amount/affiliate_commission_amount - see
+    apps/ledger/models.py), so this deliberately shows an honest "not
+    available yet" state rather than fabricating balances, matching the
+    pattern already used by apps.sellers.views.payouts_view/
+    payout_request_view for the seller payout flow before it was wired up.
+    Replace once a RiderEarning/rider ledger model + service exists.
+    """
+    profile = request.user.rider_profile
+    return render(request, "riders/earnings.html", {"profile": profile})
 
 
 @approved_rider_required

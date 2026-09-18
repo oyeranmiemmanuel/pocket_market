@@ -54,6 +54,16 @@ class FulfillmentStatus(models.TextChoices):
     customer's payment/checkout state as a whole). One Order can have
     items from several sellers, each progressing independently: Seller A
     might ship their item while Seller B is still preparing theirs.
+
+    This is deliberately the ONLY status a seller directly sets by hand.
+    The richer, buyer/seller-facing progression (Confirmed, Preparing,
+    Ready for Pickup, Assigned to Rider, Picked Up, In Transit,
+    Delivered, Refund Requested, Completed) is derived at read time in
+    apps.sellers.order_status.SellerOrderStatus by combining this field
+    with apps.logistics (pickup/rider), apps.delivery (customer-facing
+    tracking stage), and apps.orders.Refund - see that module's own
+    docstring for why it's computed rather than stored. Do not add more
+    values here to chase that list; extend the derivation instead.
     """
 
     PENDING = "pending", "Pending"

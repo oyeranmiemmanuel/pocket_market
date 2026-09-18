@@ -2,6 +2,9 @@ from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect, render
 
 from apps.catalog.models import Product
+from apps.core.enums import DeliveryMethod
+from apps.orders.services import group_cart_by_seller
+from apps.orders.services.checkout import delivery_fee_for
 
 from .models import CartItem
 from .services import cart_json_response, get_or_create_cart, is_ajax_request
@@ -26,7 +29,37 @@ def _refresh_cart_items_cache(cart):
 
 def cart_detail(request):
     cart = get_or_create_cart(request)
-    return render(request, "cart/cart_detail.html", {"cart": cart})
+
+    # Marketplace Frontend Roadmap section 18 - "Buyer Multi-Seller
+    # Cart": group items by seller, each with its own subtotal and an
+    # ESTIMATED delivery fee. It's only an estimate here - the buyer
+    # hasn't picked Standard Shipping vs Local Delivery yet (that happens
+    # on the checkout form), so this assumes the default (Standard
+    # Shipping). The real, chosen-method figures are confirmed at
+    # checkout via apps.orders.services.checkout.build_checkout_summary -
+    # the same underlying grouping function this estimate is built from,
+    # so the seller groupings themselves never disagree between the two
+    # pages, only the delivery fee (an estimate here, final there).
+    seller_groups = None
+    cart_estimate = None
+    if cart.items.exists():
+        seller_groups = group_cart_by_seller(cart)
+        estimated_fee_per_seller = delivery_fee_for(DeliveryMethod.SHIPPING)
+        for group in seller_groups:
+            group["estimated_delivery_fee"] = estimated_fee_per_seller
+
+        total_estimated_delivery = estimated_fee_per_seller * len(seller_groups)
+        cart_estimate = {
+            "products_total": cart.total_price,
+            "total_delivery_fee": total_estimated_delivery,
+            "final_total": cart.total_price + total_estimated_delivery,
+        }
+
+    return render(request, "cart/cart_detail.html", {
+        "cart": cart,
+        "seller_groups": seller_groups,
+        "cart_estimate": cart_estimate,
+    })
 
 
 def add_to_cart(request, product_id):

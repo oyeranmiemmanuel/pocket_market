@@ -56,3 +56,12 @@ AFFILIATE_ATTRIBUTION_COOKIE_NAME = "aff_ref"
 # window from inflating the click count. Not the same as the attribution
 # window (that's settings.AFFILIATE_ATTRIBUTION_WINDOW_DAYS).
 AFFILIATE_CLICK_DEDUP_MINUTES = 30
+
+# Marketplace Frontend Roadmap section 21 - "Buyer Protection UI". How
+# long after an OrderItem is marked Delivered (OrderItem.delivered_at)
+# a buyer can still report an issue or request a refund through the
+# tracking page before payout eligibility passes to the normal payout
+# schedule. The countdown shown to the buyer is informational only -
+# apps.ledger/apps.payments decide actual payout eligibility
+# server-side, never the browser's own clock.
+BUYER_PROTECTION_WINDOW_HOURS = 48

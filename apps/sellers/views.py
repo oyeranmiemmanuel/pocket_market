@@ -6,6 +6,7 @@ from django.core.paginator import Paginator
 from django.db.models import Avg, Count, Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 
 from apps.catalog.models import Product, ProductImage, Review
 from apps.core.constants import (
@@ -384,7 +385,17 @@ def update_fulfillment_status_view(request, item_id):
         new_status = request.POST.get("fulfillment_status")
         if new_status in FulfillmentStatus.values:
             item.fulfillment_status = new_status
-            item.save(update_fields=["fulfillment_status", "updated_at"])
+            update_fields = ["fulfillment_status", "updated_at"]
+            # Set once, the first time an item reaches Delivered - this is
+            # the clock Marketplace Frontend Roadmap section 21's 48-hour
+            # buyer protection window counts from (see
+            # apps.core.constants.BUYER_PROTECTION_WINDOW_HOURS). Never
+            # overwritten on a later re-save, so re-selecting "Delivered"
+            # again can't reset a buyer's countdown back to 48 hours.
+            if new_status == FulfillmentStatus.DELIVERED and item.delivered_at is None:
+                item.delivered_at = timezone.now()
+                update_fields.append("delivered_at")
+            item.save(update_fields=update_fields)
             messages.success(request, "Fulfillment status updated.")
         else:
             messages.error(request, "Invalid status.")

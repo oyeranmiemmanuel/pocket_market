@@ -142,6 +142,13 @@ class OrderItem(BaseModel):
         default=FulfillmentStatus.PENDING,
     )
 
+    # Set once, automatically, the moment fulfillment_status first
+    # becomes DELIVERED (see apps.sellers.views.update_fulfillment_status_view)
+    # - never editable by hand. This is the clock Marketplace Frontend
+    # Roadmap section 21's 48-hour buyer protection window counts from
+    # (apps.core.constants.BUYER_PROTECTION_WINDOW_HOURS).
+    delivered_at = models.DateTimeField(null=True, blank=True)
+
     class Meta:
         ordering = ["id"]
 
@@ -180,6 +187,89 @@ class ShippingAddress(BaseModel):
 
     def __str__(self):
         return f"{self.address_line1}, {self.city}"
+
+
+class SavedAddress(BaseModel):
+    """
+    A buyer's reusable delivery address (Marketplace Frontend Roadmap
+    section 19 - "Checkout" - "Address selection"). Deliberately separate
+    from ShippingAddress above, which is an immutable per-order snapshot -
+    editing or deleting a SavedAddress later must never alter a past
+    order's recorded address, the same reasoning that snapshots
+    product_name/unit_price onto OrderItem instead of pointing at the
+    live Product.
+    """
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="saved_addresses",
+    )
+
+    label = models.CharField(max_length=50, blank=True, help_text="e.g. 'Home', 'Office'.")
+
+    address_line1 = models.CharField(max_length=255)
+    address_line2 = models.CharField(max_length=255, blank=True)
+    city = models.CharField(max_length=100)
+    state = models.CharField(max_length=100)
+    postal_code = models.CharField(max_length=20, blank=True)
+    country = models.CharField(max_length=100, default="Nigeria")
+
+    is_default = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ["-is_default", "-created_at"]
+
+    def __str__(self):
+        return self.label or self.address_line1
+
+    @property
+    def display_name(self):
+        return self.label or f"{self.address_line1}, {self.city}"
+
+
+class OrderSellerDelivery(BaseModel):
+    """
+    One row per (order, seller) - that seller's own delivery fee for
+    their slice of a (possibly multi-seller) order. Marketplace Frontend
+    Roadmap sections 18/19 ("Buyer Multi-Seller Cart" / "Checkout"):
+    each seller in an order is charged - and shown - their own delivery
+    fee, rather than the whole order sharing one flat fee.
+
+    seller=None covers platform-owned items (OrderItem.seller can be
+    null - see OrderItem's own docstring above) - grouped and charged
+    exactly like a seller's own slice, under a single null-seller row.
+
+    Order.shipping_fee is kept as the SUM of these rows (backward
+    compatible with any code/template that already reads it as "the
+    order's total delivery cost") - this table is the breakdown behind
+    that number, not a replacement for it. Always built from
+    apps.orders.services.checkout.build_checkout_summary, never computed
+    ad hoc, so the persisted rows can never drift from what the buyer
+    was actually shown and charged.
+    """
+
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="seller_deliveries")
+
+    seller = models.ForeignKey(
+        "sellers.SellerProfile",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="order_deliveries",
+    )
+
+    delivery_fee = models.DecimalField(max_digits=10, decimal_places=2)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["order", "seller"], name="unique_order_seller_delivery"),
+        ]
+        ordering = ["id"]
+
+    def __str__(self):
+        who = self.seller.store_name if self.seller_id else "Platform"
+        return f"{who} delivery for {self.order.reference} (₦{self.delivery_fee})"
 
 from apps.core.enums import RefundStatus
 

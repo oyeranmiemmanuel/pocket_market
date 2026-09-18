@@ -9,6 +9,29 @@ from django.http import JsonResponse
 from .models import Cart
 
 
+def group_items_by_seller(cart):
+    """
+    Spec section 18 - "products from different sellers must be grouped".
+    A plain read helper (no persistence) so cart_detail and checkout can
+    both render the same seller-grouped shape without duplicating the
+    grouping logic apps.orders.services.checkout.build_checkout_summary
+    already has for the checkout/order-creation side.
+    """
+    from decimal import Decimal
+
+    groups = {}
+    for item in cart.items.select_related("product", "product__seller"):
+        seller = item.product.seller
+        group = groups.setdefault(seller.id, {
+            "seller_name": seller.store_name,
+            "items": [],
+            "subtotal": Decimal("0"),
+        })
+        group["items"].append(item)
+        group["subtotal"] += item.subtotal
+    return list(groups.values())
+
+
 def get_or_create_cart(request):
     """
     Logged in -> one cart per user.

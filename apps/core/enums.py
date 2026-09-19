@@ -54,16 +54,6 @@ class FulfillmentStatus(models.TextChoices):
     customer's payment/checkout state as a whole). One Order can have
     items from several sellers, each progressing independently: Seller A
     might ship their item while Seller B is still preparing theirs.
-
-    This is deliberately the ONLY status a seller directly sets by hand.
-    The richer, buyer/seller-facing progression (Confirmed, Preparing,
-    Ready for Pickup, Assigned to Rider, Picked Up, In Transit,
-    Delivered, Refund Requested, Completed) is derived at read time in
-    apps.sellers.order_status.SellerOrderStatus by combining this field
-    with apps.logistics (pickup/rider), apps.delivery (customer-facing
-    tracking stage), and apps.orders.Refund - see that module's own
-    docstring for why it's computed rather than stored. Do not add more
-    values here to chase that list; extend the derivation instead.
     """
 
     PENDING = "pending", "Pending"
@@ -98,11 +88,36 @@ class DeliveryStatus(models.TextChoices):
     CANCELLED = "cancelled", "Cancelled"
 
 class RefundStatus(models.TextChoices):
+    """
+    Spec sections 25-27's full return/refund lifecycle. Physical items
+    go through the return-tracking states (RETURN_IN_PROGRESS ->
+    ITEM_RECEIVED -> SELLER_CONDITION_CONFIRMED); digital items have
+    nothing to physically return, so they skip straight from
+    UNDER_REVIEW to PLATFORM_APPROVED (see apps.orders.services.refunds).
+    REJECTED is reachable from any pre-approval state. PLATFORM_APPROVED
+    starts the mandatory delay (REFUND_PROCESSING_DELAY_MINUTES) before
+    PROCESSING can begin - see begin_refund_processing.
+    """
     REQUESTED = "requested", "Requested"
-    REJECTED = "rejected", "Rejected"
+    UNDER_REVIEW = "under_review", "Under Review"
+    RETURN_IN_PROGRESS = "return_in_progress", "Return In Progress"
+    ITEM_RECEIVED = "item_received", "Item Received"
+    SELLER_CONDITION_CONFIRMED = "seller_condition_confirmed", "Seller Condition Confirmed"
+    PLATFORM_APPROVED = "platform_approved", "Platform Approved"
     PROCESSING = "processing", "Processing"
-    PROCESSED = "processed", "Processed"
+    PROCESSED = "processed", "Refunded"
+    REJECTED = "rejected", "Rejected"
     FAILED = "failed", "Failed"
+
+
+class RefundReasonCategory(models.TextChoices):
+    """Spec section 25 - the buyer picks one of these, then adds free-text explanation separately."""
+    NOT_AS_DESCRIBED = "not_as_described", "Item not as described"
+    DAMAGED = "damaged", "Arrived damaged"
+    WRONG_ITEM = "wrong_item", "Wrong item received"
+    NOT_DELIVERED = "not_delivered", "Never arrived"
+    CHANGED_MIND = "changed_mind", "Changed my mind"
+    OTHER = "other", "Other"
 
 
 class KYCStatus(models.TextChoices):

@@ -41,12 +41,20 @@ _BADGE_COLORS = {
     "ready_for_shipping": "yellow",
     "in_transit": "yellow",
     "out_for_delivery": "yellow",
+    "under_review": "yellow",
+    "return_in_progress": "yellow",
+    "item_received": "yellow",
+    "seller_condition_confirmed": "yellow",
+    "platform_approved": "yellow",
+    "held": "yellow",
+    "confirmed": "yellow",
     # negative / final-bad states
     "rejected": "red",
     "suspended": "red",
     "failed": "red",
     "cancelled": "red",
     "refunded": "red",
+    "processed": "red",
     "failed_delivery": "red",
 }
 

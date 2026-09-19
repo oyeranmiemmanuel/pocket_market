@@ -6,16 +6,17 @@ from django.core.paginator import Paginator
 from django.db.models import Avg, Count, Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
-from django.utils import timezone
 
 from apps.catalog.models import Product, ProductImage, Review
 from apps.core.constants import (
     AFFILIATE_COMMISSION_RATE_MAX,
     AFFILIATE_COMMISSION_RATE_MIN,
+    BUYER_PROTECTION_WINDOW_HOURS,
 )
 from apps.core.enums import FulfillmentStatus, PayoutStatus
 from apps.core.exceptions import ValidationFailedError
-from apps.orders.models import OrderItem
+from apps.orders.models import OrderItem, Refund
+from apps.orders.services.refunds import confirm_item_condition, mark_item_received
 
 from .forms import (
     ProductColorVariantFormSet,
@@ -114,6 +115,12 @@ def earnings_view(request):
         "profile": profile,
         "page_obj": page_obj,
         "status_filter": status_filter,
+        "gross_sales": profile.total_sales,
+        "platform_fees": profile.platform_fees_total,
+        "affiliate_fees": profile.affiliate_fees_total,
+        "refunds": profile.refunded_amount,
+        "net_earnings": profile.total_earnings,
+        "BUYER_PROTECTION_WINDOW_HOURS": BUYER_PROTECTION_WINDOW_HOURS,
     })
 
 
@@ -385,17 +392,7 @@ def update_fulfillment_status_view(request, item_id):
         new_status = request.POST.get("fulfillment_status")
         if new_status in FulfillmentStatus.values:
             item.fulfillment_status = new_status
-            update_fields = ["fulfillment_status", "updated_at"]
-            # Set once, the first time an item reaches Delivered - this is
-            # the clock Marketplace Frontend Roadmap section 21's 48-hour
-            # buyer protection window counts from (see
-            # apps.core.constants.BUYER_PROTECTION_WINDOW_HOURS). Never
-            # overwritten on a later re-save, so re-selecting "Delivered"
-            # again can't reset a buyer's countdown back to 48 hours.
-            if new_status == FulfillmentStatus.DELIVERED and item.delivered_at is None:
-                item.delivered_at = timezone.now()
-                update_fields.append("delivered_at")
-            item.save(update_fields=update_fields)
+            item.save(update_fields=["fulfillment_status", "updated_at"])
             messages.success(request, "Fulfillment status updated.")
         else:
             messages.error(request, "Invalid status.")
@@ -501,3 +498,53 @@ def public_store_view(request, slug):
         "average_rating": rating_data["average_rating"] or 0,
         "review_count": rating_data["review_count"],
     })
+
+
+# ---------------------------------------------------------------------------
+# Spec section 26 - the seller's own side of a refund. The seller can
+# only ever move a refund through mark_item_received/confirm_item_condition -
+# both explicitly refuse to run outside their one valid preceding state
+# (see apps.orders.services.refunds) - they can never approve, reject,
+# or execute a refund themselves.
+# ---------------------------------------------------------------------------
+
+@approved_seller_required
+def seller_refund_list_view(request):
+    profile = request.user.seller_profile
+    refunds = (
+        Refund.objects.filter(order_item__seller=profile)
+        .select_related("order_item", "order_item__order")
+        .order_by("-created_at")
+    )
+
+    paginator = Paginator(refunds, 20)
+    page_obj = paginator.get_page(request.GET.get("page"))
+
+    return render(request, "sellers/refund_list.html", {"profile": profile, "page_obj": page_obj})
+
+
+@approved_seller_required
+def seller_refund_detail_view(request, refund_id):
+    profile = request.user.seller_profile
+    refund = get_object_or_404(
+        Refund.objects.select_related("order_item", "order_item__order").prefetch_related("evidence"),
+        pk=refund_id, order_item__seller=profile,
+    )
+
+    if request.method == "POST":
+        action = request.POST.get("action")
+        try:
+            if action == "mark_received":
+                mark_item_received(refund=refund, seller_user=request.user)
+                messages.success(request, "Marked as received.")
+            elif action == "confirm_condition":
+                notes = request.POST.get("notes", "").strip()
+                if not notes:
+                    raise ValidationFailedError("Please describe the item's condition.")
+                confirm_item_condition(refund=refund, seller_user=request.user, notes=notes)
+                messages.success(request, "Condition confirmation submitted.")
+        except ValidationFailedError as e:
+            messages.error(request, str(e))
+        return redirect("sellers:refund_detail", refund_id=refund.id)
+
+    return render(request, "sellers/refund_detail.html", {"profile": profile, "refund": refund})

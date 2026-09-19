@@ -205,12 +205,19 @@ class EarningStatus(models.TextChoices):
     immediately payable - it only becomes AVAILABLE after whatever
     refund/hold period the platform decides on (manual, via admin, for
     now), and only PAID once an actual payout has gone out (Phase 9).
+
+    CONFIRMED's label is "Held" (spec section 22) rather than
+    "Confirmed" - this is the state a seller sits in from delivery until
+    the platform releases the hold; SellerEarning.confirmed_at is set
+    the moment it enters this state, so the buyer-protection countdown
+    shown alongside it (informational only) has something real to count
+    from.
     """
 
     PENDING = "pending", "Pending"
-    CONFIRMED = "confirmed", "Confirmed"
+    CONFIRMED = "confirmed", "Held"
     AVAILABLE = "available", "Available"
-    PAID = "paid", "Paid"
+    PAID = "paid", "Withdrawn"
     CANCELLED = "cancelled", "Cancelled"
     REVERSED = "reversed", "Reversed"
 
@@ -286,6 +293,12 @@ class SellerEarning(BaseModel):
         max_length=20,
         choices=EarningStatus.choices,
         default=EarningStatus.PENDING,
+    )
+
+    confirmed_at = models.DateTimeField(
+        null=True, blank=True,
+        help_text="Set the moment this earning enters Held (CONFIRMED) - "
+                   "spec section 22's hold countdown is measured from here.",
     )
 
     reversal_of = models.ForeignKey(

@@ -146,7 +146,20 @@ def mark_package_collected(pickup_task: PickupTask) -> PickupTask:
     fulfillment.status = SellerFulfillmentStatus.PICKED_UP
     fulfillment.save(update_fields=["status"])
 
+    _credit_rider_for_pickup(pickup_task)
+
     return pickup_task
+
+
+def _credit_rider_for_pickup(pickup_task):
+    """Spec sections 16/24 - the rider earns a share of this seller's delivery fee for collecting their package."""
+    from apps.core.constants import RIDER_PICKUP_EARNING_SHARE
+    from apps.orders.services.checkout import delivery_fee_for
+    from apps.riders.services import record_rider_earning
+
+    order = pickup_task.package.fulfillment.order
+    amount = delivery_fee_for(order.delivery_method) * RIDER_PICKUP_EARNING_SHARE
+    record_rider_earning(rider=pickup_task.rider, order=order, amount=amount, pickup_task=pickup_task)
 
 
 def report_pickup_exception(pickup_task: PickupTask, *, missing: bool, reason: str) -> PickupTask:
@@ -195,7 +208,31 @@ def mark_delivery_task_delivered(delivery_task: DeliveryTask) -> DeliveryTask:
     delivery_task.status = DeliveryTaskStatus.DELIVERED
     delivery_task.delivered_at = timezone.now()
     delivery_task.save(update_fields=["status", "delivered_at"])
+
+    _credit_rider_for_delivery(delivery_task)
+
     return delivery_task
+
+
+def _credit_rider_for_delivery(delivery_task):
+    """
+    Spec sections 16/24. Delivery is one leg per ORDER, not per seller
+    (see apps.orders.services.tracking's module docstring), so this
+    rider is credited the delivery share of EVERY seller's fee on this
+    order, not just one - they're doing the final-mile trip for all of
+    them in this one leg.
+    """
+    if delivery_task.rider is None:
+        return
+
+    from apps.core.constants import RIDER_DELIVERY_EARNING_SHARE
+    from apps.orders.services.checkout import delivery_fee_for
+    from apps.riders.services import record_rider_earning
+
+    order = delivery_task.delivery.order
+    distinct_sellers = order.items.exclude(seller__isnull=True).values("seller_id").distinct().count() or 1
+    amount = delivery_fee_for(order.delivery_method) * RIDER_DELIVERY_EARNING_SHARE * distinct_sellers
+    record_rider_earning(rider=delivery_task.rider, order=order, amount=amount, delivery_task=delivery_task)
 
 
 # ---------------------------------------------------------------------------

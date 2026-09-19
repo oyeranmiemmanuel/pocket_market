@@ -1,6 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
+from django.db import models
 from django.shortcuts import redirect, render
 from django.utils import timezone
 
@@ -95,9 +96,13 @@ def dashboard_view(request):
         "total_completed": DeliveryTask.objects.filter(
             rider=profile, status=DeliveryTaskStatus.DELIVERED,
         ).count(),
-        # No rider earnings ledger exists yet (see earnings_view below) -
-        # shown honestly as unavailable rather than a fabricated ₦0.
-        "earnings_available": False,
+        # RiderEarning now exists (spec sections 16/22-24) - real numbers,
+        # from the same aggregate properties earnings_view/RiderProfile use.
+        "earnings_available": True,
+        "todays_earnings": profile.earnings.filter(
+            reversal_of__isnull=True, created_at__date=today,
+        ).aggregate(total=models.Sum("amount"))["total"] or 0,
+        "available_balance": profile.available_earnings,
     })
 
 
@@ -213,17 +218,29 @@ def profile_view(request):
 @approved_rider_required
 def earnings_view(request):
     """
-    Spec section 1/16/17 - rider earnings + payment history. No rider
-    earning ledger exists on the backend yet (apps.ledger.LedgerEntry only
-    tracks seller_earning_amount/affiliate_commission_amount - see
-    apps/ledger/models.py), so this deliberately shows an honest "not
-    available yet" state rather than fabricating balances, matching the
-    pattern already used by apps.sellers.views.payouts_view/
-    payout_request_view for the seller payout flow before it was wired up.
-    Replace once a RiderEarning/rider ledger model + service exists.
+    Spec sections 16/22-24. RiderEarning now exists (one row per
+    completed pickup or delivery leg - see apps.riders.services.
+    record_rider_earning, called from apps.logistics.services when a
+    leg completes), so this is the same real, paginated, filterable
+    transaction list as apps.sellers.views.earnings_view /
+    apps.affiliates.views.my_conversions_view - never another rider's.
     """
     profile = request.user.rider_profile
-    return render(request, "riders/earnings.html", {"profile": profile})
+
+    earnings = profile.earnings.filter(reversal_of__isnull=True).select_related("order").order_by("-created_at")
+
+    status_filter = request.GET.get("status")
+    if status_filter:
+        earnings = earnings.filter(status=status_filter)
+
+    paginator = Paginator(earnings, 20)
+    page_obj = paginator.get_page(request.GET.get("page"))
+
+    return render(request, "riders/earnings.html", {
+        "profile": profile,
+        "page_obj": page_obj,
+        "status_filter": status_filter,
+    })
 
 
 @approved_rider_required

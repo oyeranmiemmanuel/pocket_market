@@ -145,9 +145,10 @@ def record_seller_earning(*, order, order_item, allocation):
 
 
 def confirm_seller_earning(*, earning):
-    """PENDING -> CONFIRMED. Manual admin step for now (no automatic timer) - mirrors apps.affiliates.services.confirm_commission."""
+    """PENDING -> CONFIRMED ("Held"). Manual admin step for now (no automatic timer) - mirrors apps.affiliates.services.confirm_commission."""
     earning.status = EarningStatus.CONFIRMED
-    earning.save(update_fields=["status", "updated_at"])
+    earning.confirmed_at = timezone.now()
+    earning.save(update_fields=["status", "confirmed_at", "updated_at"])
     return earning
 
 

@@ -2,6 +2,8 @@
 Global project constants.
 """
 
+from decimal import Decimal
+
 DEFAULT_CURRENCY = "NGN"
 
 DEFAULT_COUNTRY = "Nigeria"
@@ -57,11 +59,29 @@ AFFILIATE_ATTRIBUTION_COOKIE_NAME = "aff_ref"
 # window (that's settings.AFFILIATE_ATTRIBUTION_WINDOW_DAYS).
 AFFILIATE_CLICK_DEDUP_MINUTES = 30
 
-# Marketplace Frontend Roadmap section 21 - "Buyer Protection UI". How
-# long after an OrderItem is marked Delivered (OrderItem.delivered_at)
-# a buyer can still report an issue or request a refund through the
-# tracking page before payout eligibility passes to the normal payout
-# schedule. The countdown shown to the buyer is informational only -
-# apps.ledger/apps.payments decide actual payout eligibility
-# server-side, never the browser's own clock.
+# How long is a buyer's protection window after delivery, so refund/
+# dispute requests are still simple/fast-tracked (spec section 21). This
+# is display/informational only where it's shown - actual payout release
+# is a separate, currently-manual admin action (apps.sellers.services.
+# mark_seller_earning_available), not driven by this constant.
 BUYER_PROTECTION_WINDOW_HOURS = 48
+
+# Spec section 23 - deliberately different from BUYER_PROTECTION_WINDOW_HOURS:
+# an affiliate's commission is held longer than the buyer's own refund
+# window, since a refund can still be filed for a short while after that
+# window nominally closes (admin discretion) and shouldn't be able to
+# claw back a commission that's already been paid out.
+AFFILIATE_COMMISSION_HOLD_HOURS = 50
+
+# Spec section 27 - mandatory pause between an admin approving a refund
+# and the actual Paystack refund call firing. Enforced server-side in
+# apps.orders.services.refunds.begin_refund_processing - a frontend
+# countdown is informational only and can't make this fire early.
+REFUND_PROCESSING_DELAY_MINUTES = 15
+
+# Spec sections 16/24 - of a seller's per-order delivery fee, how much
+# goes to whoever collects the package (pickup leg) vs whoever completes
+# final delivery (delivery leg). A placeholder split ratio - there's no
+# real distance/effort-based rider pricing model yet. Must sum to 1.
+RIDER_PICKUP_EARNING_SHARE = Decimal("0.40")
+RIDER_DELIVERY_EARNING_SHARE = Decimal("0.60")

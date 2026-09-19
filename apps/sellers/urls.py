@@ -31,4 +31,8 @@ urlpatterns = [
     # Phase 4 - order management
     path("orders/", views.order_item_list_view, name="order_item_list"),
     path("orders/<uuid:item_id>/update-status/", views.update_fulfillment_status_view, name="update_fulfillment_status"),
+
+    # Spec section 24/26 - refunds
+    path("refunds/", views.seller_refund_list_view, name="refund_list"),
+    path("refunds/<uuid:refund_id>/", views.seller_refund_detail_view, name="refund_detail"),
 ]

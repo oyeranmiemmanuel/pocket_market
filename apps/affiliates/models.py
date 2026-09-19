@@ -136,6 +136,16 @@ class AffiliateProfile(BaseModel):
         return self._commission_sum(CommissionStatus.PENDING, CommissionStatus.CONFIRMED)
 
     @property
+    def pending_only_earnings(self):
+        """Just-created commissions, not yet even at the CONFIRMED/hold stage. Split out from pending_earnings for section 23's Pending/Held distinction."""
+        return self._commission_sum(CommissionStatus.PENDING)
+
+    @property
+    def held_earnings(self):
+        """CONFIRMED but not yet AVAILABLE - within the 50-hour hold window (spec section 23)."""
+        return self._commission_sum(CommissionStatus.CONFIRMED)
+
+    @property
     def withdrawable_balance(self):
         """
         Cleared AVAILABLE commissions not already reserved by an
@@ -294,12 +304,17 @@ class CommissionStatus(models.TextChoices):
     only becomes AVAILABLE after whatever refund/hold period the platform
     decides on (manual, via admin, for now - no automatic timer yet), and
     only PAID once an actual payout has gone out (Phase 9).
+
+    CONFIRMED's label is "Held" (spec section 23) - the affiliate hold
+    is 50 hours from verified delivery (AFFILIATE_COMMISSION_HOLD_HOURS),
+    counted from AffiliateCommission.confirmed_at, set the moment a
+    commission enters this state.
     """
 
     PENDING = "pending", "Pending"
-    CONFIRMED = "confirmed", "Confirmed"
+    CONFIRMED = "confirmed", "Held"
     AVAILABLE = "available", "Available"
-    PAID = "paid", "Paid"
+    PAID = "paid", "Withdrawn"
     CANCELLED = "cancelled", "Cancelled"
     REVERSED = "reversed", "Reversed"
 
@@ -380,6 +395,12 @@ class AffiliateCommission(BaseModel):
         max_length=20,
         choices=CommissionStatus.choices,
         default=CommissionStatus.PENDING,
+    )
+
+    confirmed_at = models.DateTimeField(
+        null=True, blank=True,
+        help_text="Set the moment this commission enters Held (CONFIRMED) - "
+                   "spec section 23's 50-hour hold is measured from here.",
     )
 
     reversal_of = models.ForeignKey(

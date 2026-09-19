@@ -24,6 +24,7 @@ urlpatterns = [
     path('custom_signup/', signup_view, name='custom_signup'),
     path('base/', custom_admin_view, name='custom_admin'),
     path('admin-panel/', admin_dashboard, name='admin_dashboard'),
+    path('admin-panel/analytics/', views.admin_analytics, name='admin_analytics'),
     path('custom_logout/', logout_view, name='custom_logout'),
     path(
         'verify-email/<uidb64>/<token>/',

@@ -464,9 +464,10 @@ def record_conversion_for_order(order):
     return created
 
 def confirm_commission(*, commission):
-    """PENDING -> CONFIRMED. Manual admin step for now (no automatic timer)."""
+    """PENDING -> CONFIRMED ("Held"). Manual admin step for now (no automatic timer)."""
     commission.status = CommissionStatus.CONFIRMED
-    commission.save(update_fields=["status", "updated_at"])
+    commission.confirmed_at = timezone.now()
+    commission.save(update_fields=["status", "confirmed_at", "updated_at"])
     return commission
 
 

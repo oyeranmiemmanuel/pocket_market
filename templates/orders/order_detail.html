@@ -1,4 +1,5 @@
 {% extends 'core/base.html' %}
+{% load order_extras %}
 
 {% block title %}Order {{ order.reference }} | Top Tech{% endblock %}
 
@@ -8,14 +9,6 @@
     <a href="{% url 'orders:order_list' %}" class="text-indigo-600 text-sm font-semibold hover:underline">
         <i class="fa-solid fa-arrow-left mr-1"></i> Back to Orders
     </a>
-
-    {% if messages %}
-        <div class="mt-6 space-y-2">
-            {% for message in messages %}
-                <p class="p-3 rounded-lg {% if message.tags == 'error' %}bg-red-50 text-red-700{% else %}bg-green-50 text-green-700{% endif %} text-sm">{{ message }}</p>
-            {% endfor %}
-        </div>
-    {% endif %}
 
     <div class="bg-white rounded-xl shadow p-6 sm:p-8 mt-6">
 
@@ -41,131 +34,98 @@
             </span>
         </div>
 
-        {# Marketplace Frontend Roadmap section 20 - "Order Tracking": "The buyer #}
-        {# should see fulfillment separately [per seller]." One section per #}
-        {# seller, each with its own progress checklist, rider, and delivery fee. #}
-        <h2 class="text-sm font-bold text-gray-500 uppercase tracking-wide mb-3">Fulfillment</h2>
+        <h2 class="text-sm font-bold text-gray-500 uppercase tracking-wide mb-3">Items</h2>
         <div class="space-y-5 mb-2">
-            {% for group in seller_groups %}
+            {% for group in order.items.all|group_items_by_seller %}
             <div class="border border-gray-100 rounded-lg overflow-hidden">
-                <div class="bg-gray-50 px-4 py-2.5 flex items-center justify-between flex-wrap gap-y-1">
+                <div class="bg-gray-50 px-4 py-2.5 flex items-center justify-between">
                     <span class="text-sm font-semibold text-gray-700">
                         <i class="fa-solid fa-store text-gray-400 mr-1.5"></i>
-                        {% if group.rows.0.item.seller %}<a href="{% url 'store:detail' group.rows.0.item.seller.store_slug %}" class="hover:underline">{{ group.seller_name }}</a>{% else %}{{ group.seller_name }}{% endif %}
+                        {% if group.seller %}<a href="{% url 'store:detail' group.seller.store_slug %}" class="hover:underline">{{ group.seller.store_name }}</a>{% else %}Sold by Top Tech{% endif %}
                     </span>
-                    {% if group.delivery_fee is not None %}
-                        <span class="text-xs text-gray-400">Delivery: ₦{{ group.delivery_fee }}</span>
-                    {% endif %}
                 </div>
-
-                <div class="px-4 pt-3">
-                    {% if group.all_cancelled %}
-                        <span class="inline-block px-2.5 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-700">Cancelled</span>
-                    {% else %}
-                    <div class="flex flex-wrap items-center gap-x-4 gap-y-1.5">
-                        {% for step in group.timeline %}
-                        <div class="flex items-center gap-1.5 text-xs">
-                            {% if step.state == 'done' %}
-                                <i class="fa-solid fa-circle-check text-green-600"></i>
-                                <span class="text-gray-700 font-medium">{{ step.label }}</span>
-                            {% elif step.state == 'current' %}
-                                <i class="fa-solid fa-circle-dot text-indigo-600"></i>
-                                <span class="text-indigo-700 font-semibold">{{ step.label }}</span>
-                            {% else %}
-                                <i class="fa-regular fa-circle text-gray-300"></i>
-                                <span class="text-gray-400">{{ step.label }}</span>
+                <div class="divide-y divide-gray-100 px-4">
+                    {% for item in group.items %}
+                    <div class="flex justify-between items-center py-3 text-sm">
+                        <span class="text-gray-700">
+                            {{ item.product_name }} x{{ item.quantity }}
+                            {% if order.is_paid and item.product.is_digital and item.product.digital_file %}
+                                <a href="{% url 'orders:download_product' order.reference item.id %}"
+                                   class="ml-2 text-indigo-600 hover:underline text-xs font-semibold">
+                                    Download
+                                </a>
                             {% endif %}
-                        </div>
-                        {% endfor %}
-                    </div>
-                    {% endif %}
-                </div>
-
-                <div class="divide-y divide-gray-100 px-4 mt-2">
-                    {% for row in group.rows %}
-                    <div class="py-3 text-sm">
-                        <div class="flex justify-between items-center">
-                            <span class="text-gray-700">
-                                {{ row.item.product_name }} x{{ row.item.quantity }}
-                                {% if order.is_paid and row.item.product.is_digital and row.item.product.digital_file %}
-                                    <a href="{% url 'orders:download_product' order.reference row.item.id %}"
-                                       class="ml-2 text-indigo-600 hover:underline text-xs font-semibold">
-                                        Download
-                                    </a>
-                                {% endif %}
+                            {% if item.product_id in reviewable_product_ids %}
+                                <a href="{% url 'catalog:product_detail' item.product.slug %}#reviews"
+                                   class="ml-2 text-indigo-600 hover:underline text-xs font-semibold">
+                                    <i class="fa-regular fa-star"></i> Write a Review
+                                </a>
+                            {% endif %}
+                        </span>
+                        <span class="flex items-center gap-3">
+                            <span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold
+                                {% if item.fulfillment_status == 'pending' %}
+                                    bg-gray-100 text-gray-600
+                                {% elif item.fulfillment_status == 'processing' %}
+                                    bg-yellow-50 text-yellow-700
+                                {% elif item.fulfillment_status == 'shipped' %}
+                                    bg-indigo-50 text-indigo-700
+                                {% elif item.fulfillment_status == 'delivered' %}
+                                    bg-green-50 text-green-700
+                                {% elif item.fulfillment_status == 'cancelled' %}
+                                    bg-red-50 text-red-700
+                                {% else %}
+                                    bg-gray-100 text-gray-600
+                                {% endif %}">
+                                {{ item.get_fulfillment_status_display }}
                             </span>
-                            <span class="flex items-center gap-3">
-                                <span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold
-                                    {% if row.status == 'delivered' or row.status == 'completed' %}bg-green-50 text-green-700
-                                    {% elif row.status == 'refund_requested' %}bg-yellow-50 text-yellow-700
-                                    {% elif row.status == 'cancelled' %}bg-red-50 text-red-700
-                                    {% elif row.status == 'pending' %}bg-gray-100 text-gray-600
-                                    {% else %}bg-indigo-50 text-indigo-700{% endif %}">
-                                    {{ row.status_label }}
-                                </span>
-                                <span class="font-medium text-gray-800">₦{{ row.item.subtotal }}</span>
-                            </span>
-                        </div>
-                        {% if row.rider %}
-                            <p class="text-xs text-gray-400 mt-1">Rider: {{ row.rider.full_name }}</p>
-                        {% endif %}
-
-                        {# Marketplace Frontend Roadmap section 21 - "Buyer Protection UI". #}
-                        {% if row.protection %}
-                        <div class="mt-2 {% if row.protection.active %}bg-green-50 border-green-100{% else %}bg-gray-50 border-gray-100{% endif %} border rounded-lg p-3 text-xs">
-                            <p class="font-semibold text-gray-700">Delivered</p>
-                            {% if row.protection.active %}
-                                <p class="text-green-700 font-semibold mt-0.5">Buyer Protection Active</p>
-                                <p class="text-gray-500 mt-1">
-                                    Time Remaining:
-                                    <span class="protection-countdown font-semibold text-gray-700"
-                                          data-remaining-seconds="{{ row.protection.remaining_seconds }}">&hellip;</span>
-                                </p>
-                            {% else %}
-                                <p class="text-gray-400 mt-0.5">Buyer protection period has ended.</p>
-                            {% endif %}
-
-                            {% if row.refund %}
-                                <p class="mt-2">
-                                    <span class="font-semibold text-gray-600">Dispute status:</span>
-                                    <span class="inline-block px-2 py-0.5 rounded-full font-semibold
-                                        {% if row.refund.status == 'requested' %}bg-yellow-50 text-yellow-700
-                                        {% elif row.refund.status == 'processing' %}bg-blue-50 text-blue-700
-                                        {% elif row.refund.status == 'processed' %}bg-green-50 text-green-700
-                                        {% elif row.refund.status == 'rejected' or row.refund.status == 'failed' %}bg-red-50 text-red-700
-                                        {% else %}bg-gray-100 text-gray-600{% endif %}">
-                                        {{ row.refund.get_status_display }}
-                                    </span>
-                                </p>
-                            {% elif row.protection.active %}
-                                <form method="post" action="{% url 'orders:request_refund' order.reference row.item.id %}" class="mt-2 space-y-1.5">
-                                    {% csrf_token %}
-                                    <textarea name="reason" rows="2" placeholder="Describe the issue or reason for refund..."
-                                              class="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5" required></textarea>
-                                    <button type="submit" class="text-indigo-600 font-semibold hover:underline">Report Issue / Request Refund</button>
-                                </form>
-                            {% endif %}
-                        </div>
-                        {% elif row.refund %}
-                            {# Not (or no longer) in the delivered/protection state, but a dispute still exists - keep its status visible regardless. #}
-                            <p class="mt-1 text-xs">
-                                <span class="font-semibold text-gray-500">Dispute status:</span>
-                                <span class="inline-block px-2 py-0.5 rounded-full font-semibold
-                                    {% if row.refund.status == 'requested' %}bg-yellow-50 text-yellow-700
-                                    {% elif row.refund.status == 'processing' %}bg-blue-50 text-blue-700
-                                    {% elif row.refund.status == 'processed' %}bg-green-50 text-green-700
-                                    {% elif row.refund.status == 'rejected' or row.refund.status == 'failed' %}bg-red-50 text-red-700
-                                    {% else %}bg-gray-100 text-gray-600{% endif %}">
-                                    {{ row.refund.get_status_display }}
-                                </span>
-                            </p>
-                        {% endif %}
+                            <span class="font-medium text-gray-800">₦{{ item.subtotal }}</span>
+                        </span>
                     </div>
                     {% endfor %}
                 </div>
             </div>
             {% endfor %}
         </div>
+
+        <h2 class="text-sm font-bold text-gray-500 uppercase tracking-wide mt-8 mb-3">Fulfillment Tracking</h2>
+        <div class="space-y-4 mb-2">
+            {% for row in seller_tracking %}
+            <div class="border border-gray-100 rounded-lg p-4">
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-sm font-semibold text-gray-700">
+                        <i class="fa-solid fa-store text-gray-400 mr-1.5"></i>{{ row.seller_name }}
+                    </span>
+                    <span class="text-xs text-gray-400">Delivery fee: ₦{{ row.delivery_fee }}</span>
+                </div>
+                <div class="space-y-1.5 text-sm">
+                    <p class="{% if row.confirmed %}text-green-600{% else %}text-gray-400{% endif %}">
+                        {% if row.confirmed %}<i class="fa-solid fa-circle-check mr-1.5"></i>{% else %}<i class="fa-regular fa-circle mr-1.5"></i>{% endif %}
+                        Confirmed
+                    </p>
+                    <p class="{% if row.picked_up %}text-green-600{% elif row.confirmed %}text-indigo-600{% else %}text-gray-400{% endif %}">
+                        {% if row.picked_up %}<i class="fa-solid fa-circle-check mr-1.5"></i>{% elif row.confirmed %}<i class="fa-solid fa-circle-dot mr-1.5"></i>{% else %}<i class="fa-regular fa-circle mr-1.5"></i>{% endif %}
+                        Picked Up
+                    </p>
+                    {% if order.delivery %}
+                    <p class="{% if order.delivery.is_delivered %}text-green-600{% elif order.delivery.current_stage == 'in_transit' or order.delivery.current_stage == 'out_for_delivery' or order.delivery.current_stage == 'shipped' %}text-indigo-600{% else %}text-gray-400{% endif %}">
+                        {% if order.delivery.is_delivered %}<i class="fa-solid fa-circle-check mr-1.5"></i>Delivered
+                        {% elif order.delivery.current_stage == 'in_transit' or order.delivery.current_stage == 'out_for_delivery' or order.delivery.current_stage == 'shipped' %}<i class="fa-solid fa-circle-dot mr-1.5"></i>In Transit
+                        {% else %}<i class="fa-regular fa-circle mr-1.5"></i>In Transit
+                        {% endif %}
+                    </p>
+                    {% endif %}
+                    {% if row.rider %}
+                    <p class="text-xs text-gray-400 pt-1">Rider: {{ row.rider.full_name }}</p>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        <p class="text-xs text-gray-400 mb-2">
+            Pickup status is tracked per seller. The final delivery stage below is shared across
+            every seller on this order.
+        </p>
 
         <div class="border-t border-gray-100 pt-3 space-y-2 text-sm">
             <div class="flex justify-between text-gray-600">
@@ -192,8 +152,7 @@
 
         {% if order.delivery %}
         <h2 class="text-sm font-bold text-gray-500 uppercase tracking-wide mt-8 mb-3">
-            Package Tracking
-            {% if order.delivery.method == 'local_delivery' %}(Local Delivery){% else %}(Shipping){% endif %}
+            {% if order.delivery.method == 'local_delivery' %}Local Delivery Tracking{% else %}Shipping Tracking{% endif %}
         </h2>
 
         <div class="h-2 bg-gray-100 rounded-full overflow-hidden mb-2">
@@ -224,43 +183,163 @@
         </div>
         {% endif %}
 
+        {% if protection_deadline %}
+        <h2 class="text-sm font-bold text-gray-500 uppercase tracking-wide mt-8 mb-3">Buyer Protection</h2>
+        <div class="bg-indigo-50 rounded-lg p-4 mb-4">
+            <p class="font-semibold text-indigo-700 text-sm mb-1">
+                <i class="fa-solid fa-shield-halved mr-1"></i> Buyer Protection Active
+            </p>
+            <p class="text-xs text-indigo-600 mb-1">Time Remaining:</p>
+            <p class="text-2xl font-bold text-indigo-700" id="protection-countdown" data-deadline="{{ protection_deadline }}">
+                &mdash;
+            </p>
+            <p class="text-xs text-gray-500 mt-2">
+                This countdown is informational only. Eligibility to request a refund or report an
+                issue is always decided by the backend, not by this timer.
+            </p>
+        </div>
+
+        <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Report an Issue / Request a Refund</h3>
+        <div class="space-y-3 mb-4">
+            {% for group in order.items.all|group_items_by_seller %}
+                {% for item in group.items %}
+                <div class="border border-gray-100 rounded-lg p-3">
+                    <p class="text-sm font-medium text-gray-700 mb-2">{{ item.product_name }}</p>
+                    {% with refund=item.refunds.all|last %}
+                    {% if refund and refund.status != 'rejected' and refund.status != 'failed' %}
+                        <p class="text-xs text-gray-500">
+                            A request for this item is already {{ refund.get_status_display|lower }}.
+                        </p>
+                    {% else %}
+                        <form method="post" action="{% url 'orders:request_refund' order.reference item.id %}" enctype="multipart/form-data">
+                            {% csrf_token %}
+                            <select name="reason_category" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-2">
+                                <option value="">What's the issue?</option>
+                                {% for value, label in reason_categories %}
+                                <option value="{{ value }}">{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                            <textarea name="reason" rows="2" required minlength="10" placeholder="Add more detail"
+                                      class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-2"></textarea>
+                            <label class="block text-xs text-gray-500 mb-2">
+                                Evidence (optional) - photos, screenshots, etc.
+                                <input type="file" name="evidence" multiple accept="image/*,.pdf"
+                                       class="block w-full text-xs mt-1">
+                            </label>
+                            <button type="submit"
+                                    class="bg-gray-800 hover:bg-gray-900 text-white text-xs font-semibold px-4 py-2 rounded-lg transition">
+                                Submit
+                            </button>
+                        </form>
+                    {% endif %}
+                    {% endwith %}
+                </div>
+                {% endfor %}
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if existing_refunds %}
+        <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Refund / Dispute Status</h3>
+        <div class="space-y-4 mb-2">
+            {% for refund in existing_refunds %}
+            <div class="border border-gray-100 rounded-lg p-4">
+                <div class="flex justify-between items-center mb-3">
+                    <span class="text-sm font-medium text-gray-700">{{ refund.order_item.product_name }}</span>
+                    <span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold
+                        {% if refund.status == 'processed' %}bg-green-50 text-green-700
+                        {% elif refund.status == 'rejected' or refund.status == 'failed' %}bg-red-50 text-red-700
+                        {% else %}bg-yellow-50 text-yellow-700{% endif %}">
+                        {{ refund.get_status_display }}
+                    </span>
+                </div>
+
+                {% if refund.status == 'rejected' or refund.status == 'failed' %}
+                    <p class="text-xs text-gray-400">{{ refund.admin_notes|default:"No further detail provided." }}</p>
+                {% else %}
+                <!-- Spec section 25's 8-stage timeline. A digital item skips the -->
+                <!-- three return-tracking steps (dimmed, not removed - keeps the -->
+                <!-- shape consistent between physical and digital items). -->
+                <div class="flex flex-wrap items-center gap-1 text-xs">
+                    {% for status_value, status_label in refund_timeline_statuses %}
+                        {% if not forloop.first %}<i class="fa-solid fa-chevron-right text-gray-300 mx-0.5"></i>{% endif %}
+                        <span class="px-2 py-1 rounded-full
+                            {% if status_value == refund.status %}bg-indigo-600 text-white font-semibold
+                            {% elif not refund.requires_physical_return and status_value in 'return_in_progress,item_received,seller_condition_confirmed' %}bg-gray-50 text-gray-300
+                            {% else %}bg-gray-100 text-gray-500{% endif %}">
+                            {{ status_label }}
+                        </span>
+                    {% endfor %}
+                </div>
+
+                {% if refund.status == 'platform_approved' %}
+                <div class="bg-indigo-50 rounded-lg p-3 mt-3">
+                    <p class="text-xs font-semibold text-indigo-700 mb-1">Refund Approved</p>
+                    <p class="text-xs text-indigo-600 mb-1">
+                        Processing begins after the required verification period.
+                    </p>
+                    <p class="font-bold text-indigo-700 refund-processing-countdown" data-approved-at="{{ refund.approved_at.isoformat }}">
+                        &mdash;
+                    </p>
+                </div>
+                {% endif %}
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
     </div>
 </div>
-{% endblock %}
 
 {% block extra_js %}
 <script>
-// Buyer protection countdown (Marketplace Frontend Roadmap section 21) -
-// purely a client-side display tick from the remaining_seconds the
-// server computed at page load. Informational only, exactly as the
-// roadmap specifies: nothing here decides eligibility, it just counts
-// down what the server already told us, and freezes at "Expired" rather
-// than ever going negative.
 (function () {
-    const els = document.querySelectorAll('.protection-countdown');
-    if (!els.length) return;
+    var el = document.getElementById('protection-countdown');
+    if (!el) return;
+    var deadline = new Date(el.dataset.deadline).getTime();
 
-    function format(totalSeconds) {
-        if (totalSeconds <= 0) return 'Expired';
-        const hours = Math.floor(totalSeconds / 3600);
-        const minutes = Math.floor((totalSeconds % 3600) / 60);
-        return hours + 'h ' + minutes + 'm';
+    function tick() {
+        var remaining = deadline - Date.now();
+        if (remaining <= 0) {
+            el.textContent = 'Protection period ended';
+            clearInterval(timer);
+            return;
+        }
+        var hours = Math.floor(remaining / 3600000);
+        var minutes = Math.floor((remaining % 3600000) / 60000);
+        el.textContent = hours + 'h ' + minutes + 'm';
     }
 
-    const timers = Array.from(els).map(function (el) {
-        return { el: el, remaining: parseInt(el.dataset.remainingSeconds, 10) || 0 };
-    });
+    tick();
+    var timer = setInterval(tick, 30000);
+})();
 
-    timers.forEach(function (t) { t.el.textContent = format(t.remaining); });
+// Spec section 27 - purely informational. begin_refund_processing on
+// the backend re-checks the real elapsed time itself; this countdown
+// reaching zero does not and cannot trigger anything - it only tells
+// the buyer roughly when to expect the status to move on its own.
+(function () {
+    document.querySelectorAll('.refund-processing-countdown').forEach(function (el) {
+        var approvedAt = new Date(el.dataset.approvedAt).getTime();
+        var deadline = approvedAt + {{ REFUND_PROCESSING_DELAY_MINUTES }} * 60000;
 
-    setInterval(function () {
-        timers.forEach(function (t) {
-            if (t.remaining > 0) {
-                t.remaining -= 1;
-                t.el.textContent = format(t.remaining);
+        function tick() {
+            var remaining = deadline - Date.now();
+            if (remaining <= 0) {
+                el.textContent = 'Verification period complete';
+                clearInterval(timer);
+                return;
             }
-        });
-    }, 60000); // tick once a minute - this is a display countdown, not a precise timer
+            var minutes = Math.floor(remaining / 60000);
+            var seconds = Math.floor((remaining % 60000) / 1000);
+            el.textContent = minutes + 'm ' + seconds + 's';
+        }
+
+        tick();
+        var timer = setInterval(tick, 1000);
+    });
 })();
 </script>
+{% endblock %}
 {% endblock %}

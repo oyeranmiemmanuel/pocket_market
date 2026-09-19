@@ -23,9 +23,11 @@ from apps.catalog.models import Product, Review
 # behind admin_orders/orders.html elsewhere in this file - not touched
 # here, since that's a separate page with its own legacy-only fields
 # (amount, verified, purchase_completed). Aliased to avoid shadowing it.
-from apps.orders.models import Order as RealOrder, OrderStatus
-from apps.sellers.models import SellerProfile, SellerStatus
-from apps.affiliates.models import AffiliateProfile, AffiliateStatus
+from apps.orders.models import Order as RealOrder, OrderStatus, Refund
+from apps.sellers.models import EarningStatus, SellerEarning, SellerPayout, SellerProfile, SellerStatus
+from apps.affiliates.models import AffiliateCommission, AffiliatePayout, AffiliateProfile, AffiliateStatus, CommissionStatus
+from apps.riders.models import RiderEarning, RiderEarningStatus
+from apps.core.enums import PayoutStatus, RefundStatus
 from apps.notifications.models import Notification
 from .forms import MessageForm
 
@@ -281,6 +283,49 @@ def admin_dashboard(request):
     # notification pipeline is actually firing).
     total_notifications_sent = Notification.objects.count()
 
+    # Spec section 28 - restored (the comment above claiming these
+    # models "no longer exist" is stale; SellerPayout/AffiliatePayout
+    # were rebuilt against the ledger in Phase 9 and are very much real).
+    pending_seller_payouts = SellerPayout.objects.filter(status=PayoutStatus.PENDING).count()
+    pending_affiliate_payouts = AffiliatePayout.objects.filter(status=PayoutStatus.PENDING).count()
+
+    # Spec section 28's remaining summary cards. "Liabilities" = money
+    # the platform owes but hasn't paid out yet (Held + Available,
+    # mirroring each dashboard's own "Held"/"Available" breakdown) -
+    # Pending is deliberately excluded, since that stage hasn't even
+    # cleared the buyer-protection/hold window yet.
+    _owed_statuses = (EarningStatus.CONFIRMED, EarningStatus.AVAILABLE)
+    seller_liabilities = SellerEarning.objects.filter(
+        reversal_of__isnull=True, status__in=_owed_statuses,
+    ).aggregate(total=Sum("earning_amount"))["total"] or 0
+
+    _owed_commission_statuses = (CommissionStatus.CONFIRMED, CommissionStatus.AVAILABLE)
+    affiliate_liabilities = AffiliateCommission.objects.filter(
+        reversal_of__isnull=True, status__in=_owed_commission_statuses,
+    ).aggregate(total=Sum("commission_amount"))["total"] or 0
+
+    _owed_rider_statuses = (RiderEarningStatus.CONFIRMED, RiderEarningStatus.AVAILABLE)
+    rider_payments = RiderEarning.objects.filter(
+        reversal_of__isnull=True, status__in=_owed_rider_statuses,
+    ).aggregate(total=Sum("amount"))["total"] or 0
+
+    gross_marketplace_volume = revenue  # every paid order's total - already computed above
+
+    # Platform's own cut, net of anything already refunded back out.
+    platform_revenue = SellerEarning.objects.filter(reversal_of__isnull=True).aggregate(
+        total=Sum("platform_commission_amount")
+    )["total"] or 0
+
+    pending_refunds = Refund.objects.filter(status=RefundStatus.REQUESTED).count()
+
+    # "Active disputes" - a refund that's actually being worked, past the
+    # initial request but not yet at a terminal state.
+    _active_dispute_statuses = (
+        RefundStatus.UNDER_REVIEW, RefundStatus.RETURN_IN_PROGRESS, RefundStatus.ITEM_RECEIVED,
+        RefundStatus.SELLER_CONDITION_CONFIRMED, RefundStatus.PLATFORM_APPROVED, RefundStatus.PROCESSING,
+    )
+    active_disputes = Refund.objects.filter(status__in=_active_dispute_statuses).count()
+
     context = {
         'title': 'Admin Dashboard',
         'total_users': total_users,
@@ -294,10 +339,20 @@ def admin_dashboard(request):
         'recent_messages': recent_messages,
         'total_sellers': total_sellers,
         'pending_seller_applications': pending_seller_applications,
+        'pending_seller_payouts': pending_seller_payouts,
         'total_affiliates': total_affiliates,
         'pending_affiliate_applications': pending_affiliate_applications,
+        'pending_affiliate_payouts': pending_affiliate_payouts,
         'total_reviews': total_reviews,
         'total_notifications_sent': total_notifications_sent,
+        # Spec section 28 summary cards
+        'gross_marketplace_volume': gross_marketplace_volume,
+        'platform_revenue': platform_revenue,
+        'seller_liabilities': seller_liabilities,
+        'affiliate_liabilities': affiliate_liabilities,
+        'rider_payments': rider_payments,
+        'pending_refunds': pending_refunds,
+        'active_disputes': active_disputes,
     }
 
     return render(
@@ -305,6 +360,86 @@ def admin_dashboard(request):
         'custom_admin/dashboard.html',
         context
     )
+
+
+@login_required
+@user_passes_test(is_admin)
+def admin_analytics(request):
+    """Spec section 29 - marketplace-wide charts, 30-day window, same {"labels": [...], "values": [...]} shape used elsewhere (apps.sellers.analytics, apps.affiliates.services.affiliate_analytics)."""
+    from datetime import timedelta
+    from django.db.models import Count
+    from django.db.models.functions import TruncDate
+    from django.utils import timezone
+
+    since = timezone.now() - timedelta(days=30)
+
+    def _daily(queryset, value_field=None):
+        rows = (
+            queryset.filter(created_at__gte=since)
+            .annotate(bucket=TruncDate("created_at"))
+            .values("bucket")
+            .annotate(total=Sum(value_field) if value_field else Count("id"))
+            .order_by("bucket")
+        )
+        return {
+            "labels": [row["bucket"].strftime("%b %-d") for row in rows],
+            "values": [float(row["total"] or 0) for row in rows],
+        }
+
+    revenue_by_day = _daily(
+        RealOrder.objects.filter(status__in=[OrderStatus.PAID, OrderStatus.SHIPPED, OrderStatus.DELIVERED]),
+        value_field="total",
+    )
+    orders_by_day = _daily(RealOrder.objects.all())
+
+    refunds_by_day = _daily(Refund.objects.all())
+
+    revenue_distribution = {
+        "labels": ["Seller Earnings", "Affiliate Commissions", "Rider Payments", "Platform Revenue"],
+        "values": [
+            float(SellerEarning.objects.filter(reversal_of__isnull=True).aggregate(t=Sum("earning_amount"))["t"] or 0),
+            float(AffiliateCommission.objects.filter(reversal_of__isnull=True).aggregate(t=Sum("commission_amount"))["t"] or 0),
+            float(RiderEarning.objects.filter(reversal_of__isnull=True).aggregate(t=Sum("amount"))["t"] or 0),
+            float(SellerEarning.objects.filter(reversal_of__isnull=True).aggregate(t=Sum("platform_commission_amount"))["t"] or 0),
+        ],
+    }
+
+    top_sellers_qs = (
+        SellerEarning.objects.filter(reversal_of__isnull=True)
+        .values("seller__store_name")
+        .annotate(total=Sum("earning_amount"), sales=Count("id"))
+        .order_by("-total")[:10]
+    )
+    top_sellers = {
+        "labels": [row["seller__store_name"] for row in top_sellers_qs],
+        "values": [float(row["total"] or 0) for row in top_sellers_qs],
+    }
+
+    top_affiliates_qs = (
+        AffiliateProfile.objects.annotate(
+            click_count=Count("clicks", distinct=True),
+            conversion_count=Count("commissions", filter=models.Q(commissions__reversal_of__isnull=True), distinct=True),
+        )
+        .order_by("-conversion_count")[:10]
+    )
+    top_affiliates = [
+        {
+            "name": affiliate.affiliate_code,
+            "clicks": affiliate.click_count,
+            "conversions": affiliate.conversion_count,
+            "earnings": affiliate.total_earnings,
+        }
+        for affiliate in top_affiliates_qs
+    ]
+
+    return render(request, "custom_admin/analytics.html", {
+        "revenue_by_day": revenue_by_day,
+        "orders_by_day": orders_by_day,
+        "refunds_by_day": refunds_by_day,
+        "revenue_distribution": revenue_distribution,
+        "top_sellers": top_sellers,
+        "top_affiliates": top_affiliates,
+    })
 
 
 @login_required

@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.conf import settings
 from django.db import models
 
@@ -125,3 +127,129 @@ class RiderProfile(BaseModel):
         suspended/inactive, and currently toggled available.
         """
         return self.status == RiderStatus.APPROVED and self.is_available
+
+    # ------------------------------------------------------------------
+    # Spec sections 13/16/22-24 - balances aggregated straight from
+    # RiderEarning rows, mirroring SellerProfile/AffiliateProfile's own
+    # earnings properties exactly. No RiderPayout model exists yet, so
+    # unlike withdrawable_balance on those two, available_earnings here
+    # isn't reduced by any in-flight payout reservation.
+    # ------------------------------------------------------------------
+
+    def _earning_sum(self, *statuses):
+        return self.earnings.filter(status__in=statuses).aggregate(
+            total=models.Sum("amount")
+        )["total"] or Decimal("0.00")
+
+    @property
+    def total_earnings(self):
+        return self._earning_sum(
+            RiderEarningStatus.PENDING, RiderEarningStatus.CONFIRMED,
+            RiderEarningStatus.AVAILABLE, RiderEarningStatus.PAID,
+        )
+
+    @property
+    def pending_earnings(self):
+        return self._earning_sum(RiderEarningStatus.PENDING, RiderEarningStatus.CONFIRMED)
+
+    @property
+    def pending_only_earnings(self):
+        return self._earning_sum(RiderEarningStatus.PENDING)
+
+    @property
+    def held_earnings(self):
+        return self._earning_sum(RiderEarningStatus.CONFIRMED)
+
+    @property
+    def available_earnings(self):
+        return self._earning_sum(RiderEarningStatus.AVAILABLE)
+
+    @property
+    def paid_earnings(self):
+        return self._earning_sum(RiderEarningStatus.PAID)
+
+
+class RiderEarningStatus(models.TextChoices):
+    """Mirrors apps.sellers.models.EarningStatus / apps.affiliates.models.CommissionStatus's lifecycle exactly."""
+
+    PENDING = "pending", "Pending"
+    CONFIRMED = "confirmed", "Held"
+    AVAILABLE = "available", "Available"
+    PAID = "paid", "Withdrawn"
+    CANCELLED = "cancelled", "Cancelled"
+    REVERSED = "reversed", "Reversed"
+
+
+class RiderEarning(BaseModel):
+    """
+    Spec sections 16/24 - what a rider earns for completing one leg of
+    a delivery. One row per completed PickupTask (collecting a seller's
+    package) or DeliveryTask (the final leg to the buyer) - never both
+    on the same row, since they're separately dispatched and can go to
+    different riders. Created once, at the moment
+    apps.logistics.services.mark_package_collected /
+    mark_delivery_task_delivered actually completes that leg - never
+    computed live in a view, mirroring how SellerEarning/
+    AffiliateCommission are created once at payment-success time.
+
+    No automated hold-release timer exists yet, same as
+    SellerEarning/AffiliateCommission - PENDING -> CONFIRMED ("Held") ->
+    AVAILABLE -> PAID ("Withdrawn") is a manual admin step for now (see
+    apps.riders.admin).
+    """
+
+    rider = models.ForeignKey(
+        "riders.RiderProfile", on_delete=models.PROTECT, related_name="earnings",
+        help_text="PROTECT, not SET_NULL/CASCADE - an earning must never lose track of who it's owed to.",
+    )
+
+    order = models.ForeignKey("orders.Order", on_delete=models.PROTECT, related_name="rider_earnings")
+
+    pickup_task = models.ForeignKey(
+        "logistics.PickupTask", on_delete=models.PROTECT, null=True, blank=True, related_name="rider_earning",
+    )
+    delivery_task = models.ForeignKey(
+        "logistics.DeliveryTask", on_delete=models.PROTECT, null=True, blank=True, related_name="rider_earning",
+    )
+
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+
+    status = models.CharField(max_length=20, choices=RiderEarningStatus.choices, default=RiderEarningStatus.PENDING)
+
+    confirmed_at = models.DateTimeField(null=True, blank=True)
+
+    reversal_of = models.ForeignKey(
+        "self", on_delete=models.PROTECT, null=True, blank=True, related_name="reversals",
+        help_text="Set only on a reversal row - points back at the original earning it cancels out.",
+    )
+
+    class Meta:
+        db_table = "rider_earnings"
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["rider", "status"])]
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(pickup_task__isnull=False, delivery_task__isnull=True)
+                    | models.Q(pickup_task__isnull=True, delivery_task__isnull=False)
+                ),
+                name="rider_earning_exactly_one_task",
+            ),
+            models.UniqueConstraint(
+                fields=["pickup_task"],
+                condition=models.Q(reversal_of__isnull=True, pickup_task__isnull=False),
+                name="unique_original_earning_per_pickup_task",
+            ),
+            models.UniqueConstraint(
+                fields=["delivery_task"],
+                condition=models.Q(reversal_of__isnull=True, delivery_task__isnull=False),
+                name="unique_original_earning_per_delivery_task",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.rider.full_name} earns {self.amount} on {self.order.reference} ({self.get_status_display()})"
+
+    @property
+    def leg(self):
+        return "pickup" if self.pickup_task_id else "delivery"

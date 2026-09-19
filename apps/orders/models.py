@@ -142,13 +142,6 @@ class OrderItem(BaseModel):
         default=FulfillmentStatus.PENDING,
     )
 
-    # Set once, automatically, the moment fulfillment_status first
-    # becomes DELIVERED (see apps.sellers.views.update_fulfillment_status_view)
-    # - never editable by hand. This is the clock Marketplace Frontend
-    # Roadmap section 21's 48-hour buyer protection window counts from
-    # (apps.core.constants.BUYER_PROTECTION_WINDOW_HOURS).
-    delivered_at = models.DateTimeField(null=True, blank=True)
-
     class Meta:
         ordering = ["id"]
 
@@ -188,69 +181,39 @@ class ShippingAddress(BaseModel):
     def __str__(self):
         return f"{self.address_line1}, {self.city}"
 
-
 class SavedAddress(BaseModel):
-    """
-    A buyer's reusable delivery address (Marketplace Frontend Roadmap
-    section 19 - "Checkout" - "Address selection"). Deliberately separate
-    from ShippingAddress above, which is an immutable per-order snapshot -
-    editing or deleting a SavedAddress later must never alter a past
-    order's recorded address, the same reasoning that snapshots
-    product_name/unit_price onto OrderItem instead of pointing at the
-    live Product.
-    """
-
+    """A reusable shipping address belonging to a user."""
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name="saved_addresses",
     )
-
     label = models.CharField(max_length=50, blank=True, help_text="e.g. 'Home', 'Office'.")
-
     address_line1 = models.CharField(max_length=255)
     address_line2 = models.CharField(max_length=255, blank=True)
     city = models.CharField(max_length=100)
     state = models.CharField(max_length=100)
     postal_code = models.CharField(max_length=20, blank=True)
     country = models.CharField(max_length=100, default="Nigeria")
-
     is_default = models.BooleanField(default=False)
 
     class Meta:
         ordering = ["-is_default", "-created_at"]
 
     def __str__(self):
-        return self.label or self.address_line1
-
-    @property
-    def display_name(self):
-        return self.label or f"{self.address_line1}, {self.city}"
+        return f"{self.label or 'Address'} - {self.address_line1}, {self.city}"
 
 
 class OrderSellerDelivery(BaseModel):
     """
-    One row per (order, seller) - that seller's own delivery fee for
-    their slice of a (possibly multi-seller) order. Marketplace Frontend
-    Roadmap sections 18/19 ("Buyer Multi-Seller Cart" / "Checkout"):
-    each seller in an order is charged - and shown - their own delivery
-    fee, rather than the whole order sharing one flat fee.
-
-    seller=None covers platform-owned items (OrderItem.seller can be
-    null - see OrderItem's own docstring above) - grouped and charged
-    exactly like a seller's own slice, under a single null-seller row.
-
-    Order.shipping_fee is kept as the SUM of these rows (backward
-    compatible with any code/template that already reads it as "the
-    order's total delivery cost") - this table is the breakdown behind
-    that number, not a replacement for it. Always built from
-    apps.orders.services.checkout.build_checkout_summary, never computed
-    ad hoc, so the persisted rows can never drift from what the buyer
-    was actually shown and charged.
+    Delivery fee allocated to one seller within a multi-seller order.
+    seller=None represents a platform-owned product.
     """
-
-    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="seller_deliveries")
-
+    order = models.ForeignKey(
+        Order,
+        on_delete=models.CASCADE,
+        related_name="seller_deliveries",
+    )
     seller = models.ForeignKey(
         "sellers.SellerProfile",
         on_delete=models.SET_NULL,
@@ -258,28 +221,33 @@ class OrderSellerDelivery(BaseModel):
         blank=True,
         related_name="order_deliveries",
     )
-
     delivery_fee = models.DecimalField(max_digits=10, decimal_places=2)
 
     class Meta:
-        constraints = [
-            models.UniqueConstraint(fields=["order", "seller"], name="unique_order_seller_delivery"),
-        ]
         ordering = ["id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=("order", "seller"),
+                name="unique_order_seller_delivery",
+            ),
+        ]
 
     def __str__(self):
-        who = self.seller.store_name if self.seller_id else "Platform"
-        return f"{who} delivery for {self.order.reference} (₦{self.delivery_fee})"
+        seller_name = self.seller.store_name if self.seller else "This Store"
+        return f"{self.order.reference} - {seller_name}"
 
-from apps.core.enums import RefundStatus
+
+from apps.core.enums import RefundReasonCategory, RefundStatus
 
 
 class Refund(BaseModel):
     """
     A customer's request to refund one line item of their own paid
-    order. Approving a refund (apps.orders.services.refunds.approve_refund)
-    is what actually triggers the Paystack refund call - there's no
-    separate "approved but not yet sent" state.
+    order. Spec sections 25-27's full lifecycle (see RefundStatus) -
+    admin approval (apps.orders.services.refunds.approve_refund) no
+    longer calls Paystack immediately; it only starts the mandatory
+    delay. The actual Paystack call happens in begin_refund_processing,
+    once that delay has genuinely elapsed.
     """
 
     order_item = models.ForeignKey(OrderItem, on_delete=models.PROTECT, related_name="refunds")
@@ -288,17 +256,33 @@ class Refund(BaseModel):
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name="refund_requests",
     )
 
-    reason = models.TextField()
+    reason_category = models.CharField(
+        max_length=30, choices=RefundReasonCategory.choices, default=RefundReasonCategory.OTHER,
+    )
+
+    reason = models.TextField(help_text="Buyer's explanation, in addition to reason_category.")
 
     amount = models.DecimalField(max_digits=12, decimal_places=2)
 
-    status = models.CharField(max_length=20, choices=RefundStatus.choices, default=RefundStatus.REQUESTED)
+    status = models.CharField(max_length=30, choices=RefundStatus.choices, default=RefundStatus.REQUESTED)
 
     admin_notes = models.CharField(max_length=255, blank=True)
 
     reviewed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="refund_reviews",
     )
+
+    # Section 26 - seller-side return confirmation. The seller can only
+    # ever move a refund THROUGH these two checkpoints, never straight
+    # to approved/processing/refunded - that stays a platform action.
+    item_received_at = models.DateTimeField(null=True, blank=True)
+    seller_condition_notes = models.TextField(blank=True)
+    seller_condition_confirmed_at = models.DateTimeField(null=True, blank=True)
+
+    # Section 27 - when this refund entered PLATFORM_APPROVED. The
+    # mandatory delay is measured from here, server-side, in
+    # begin_refund_processing - never from anything the frontend sends.
+    approved_at = models.DateTimeField(null=True, blank=True)
 
     provider_reference = models.CharField(max_length=100, blank=True)
 
@@ -310,3 +294,25 @@ class Refund(BaseModel):
 
     def __str__(self):
         return f"Refund for {self.order_item.product_name} ({self.get_status_display()})"
+
+    @property
+    def requires_physical_return(self):
+        """Digital items skip the return-tracking states entirely - see apps.orders.services.refunds."""
+        return self.order_item.product is None or not self.order_item.product.is_digital
+
+
+class RefundEvidence(BaseModel):
+    """Spec section 25 - "upload permitted evidence". One row per uploaded file, so a buyer can attach more than one."""
+
+    refund = models.ForeignKey(Refund, on_delete=models.CASCADE, related_name="evidence")
+
+    file = models.FileField(upload_to="refund_evidence/%Y/%m/")
+
+    uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+
+    class Meta:
+        db_table = "refund_evidence"
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return f"Evidence for refund {self.refund_id}"

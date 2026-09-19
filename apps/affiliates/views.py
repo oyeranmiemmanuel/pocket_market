@@ -6,6 +6,7 @@ from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404, redirect, render
 
 from apps.catalog.models import Product
+from apps.core.constants import AFFILIATE_COMMISSION_HOLD_HOURS
 from apps.core.enums import PayoutStatus
 from apps.core.exceptions import ValidationFailedError
 
@@ -133,6 +134,7 @@ def my_conversions_view(request):
         "profile": profile,
         "page_obj": page_obj,
         "status_filter": status_filter,
+        "AFFILIATE_COMMISSION_HOLD_HOURS": AFFILIATE_COMMISSION_HOLD_HOURS,
     })
 
 

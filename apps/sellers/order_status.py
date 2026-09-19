@@ -28,7 +28,11 @@ from apps.orders.models import OrderItem
 
 from .models import EarningStatus
 
-_ACTIVE_REFUND_STATUSES = (RefundStatus.REQUESTED, RefundStatus.PROCESSING)
+_ACTIVE_REFUND_STATUSES = (
+    RefundStatus.REQUESTED, RefundStatus.UNDER_REVIEW, RefundStatus.RETURN_IN_PROGRESS,
+    RefundStatus.ITEM_RECEIVED, RefundStatus.SELLER_CONDITION_CONFIRMED,
+    RefundStatus.PLATFORM_APPROVED, RefundStatus.PROCESSING,
+)
 _SETTLED_EARNING_STATUSES = (EarningStatus.AVAILABLE, EarningStatus.PAID)
 _ASSIGNED_PICKUP_STATUSES = (PickupTaskStatus.ASSIGNED, PickupTaskStatus.EN_ROUTE)
 _IN_TRANSIT_DELIVERY_STAGES = (DeliveryStatus.IN_TRANSIT, DeliveryStatus.OUT_FOR_DELIVERY)
